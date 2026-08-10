@@ -129,8 +129,8 @@ Neo4j comparison, image-build, and Kubernetes harnesses.
 ### Clone and verify
 
 ```bash
-git clone https://github.com/usecortex/hydradb2.git
-cd hydradb2
+git clone https://github.com/hydra-db/hydradb.git
+cd hydradb
 
 just native-check
 just smoke
