@@ -89,8 +89,13 @@ step exports the same three variables the justfile would have.
 
 The complete sequence, executed end to end on macOS (arm64) and on a clean
 Ubuntu 24.04 container. Everything runs one process against the local
-filesystem: no Docker, no S3, no Kubernetes. `README.md` has the same sequence
-with prose for humans.
+filesystem: no Docker, no S3, no Kubernetes. `README.md`'s "Run a local server"
+covers the same ground for humans, in less detail.
+
+The ports and paths here (`17687`/`18443`/`19091`, `/tmp/sgk-*`) deliberately
+differ from the README's (`7687`/`8443`/`9090`, `.hydradb/`) so an agent's node
+cannot collide with one a developer is already running, and so nothing is
+written inside the checkout.
 
 **Environment does not survive between steps.** If each command you run gets a
 fresh shell — which is true for most agent tool calls — then every `export` is
@@ -101,11 +106,12 @@ Those lines are not optional decoration.
 
 Every command below runs from the repository root unless stated otherwise.
 
-**Two different stores.** Steps 3-6 use `/tmp/sgk-store` for the harnesses;
-step 7 uses `/tmp/sgk-local/store` for the long-running node. That is
-deliberate, so a harness run cannot disturb a server you are keeping alive.
-Step 7 sources the same file for `REPO_ROOT` and the build paths, then overrides
-`LOCAL_PATH` with its own store.
+**Object store.** `just smoke` and `scripts/runtime_smoke.sh` each create and
+configure their own throwaway store, so you do not need to supply one for them.
+Step 7 sets `LOCAL_PATH` to `/tmp/sgk-local/store` for the long-running node,
+deliberately separate so a harness run cannot disturb a server you are keeping
+alive. The `CLOUD_PROVIDER`/`LOCAL_PATH` pair in the env file matters only if
+you run an example directly, e.g. `cargo run --example object_store_smoke`.
 
 **Builds are slow.** Step 4 compiles the dependency tree (~1-3 minutes cold) and
 step 6 compiles again with more features enabled (~1 minute more). Step 7's
@@ -166,8 +172,8 @@ return to it, since a fresh shell starts wherever the harness puts it.
 mkdir -p /tmp/sgk-store
 printf 'export REPO_ROOT=%q\n' "$PWD" > /tmp/sgk-env.sh
 cat >> /tmp/sgk-env.sh <<'EOF'
-export CLOUD_PROVIDER=local        # object store: a local directory, not S3
-export LOCAL_PATH=/tmp/sgk-store   # must already exist; not created for you
+export CLOUD_PROVIDER=local        # only for running examples directly;
+export LOCAL_PATH=/tmp/sgk-store   #   just smoke and runtime_smoke.sh self-configure
 export RUST_MIN_STACK=33554432     # every platform; the node aborts without it
 export SGK_VENV=/tmp/sgk-venv      # created in step 5; used by steps 6 and 8
 # macOS: scripts call cargo directly and miss the justfile's exports.
