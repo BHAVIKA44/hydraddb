@@ -1,9 +1,9 @@
 [package]
-name = "turbolay-placement"
+name = "hydradb-placement"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.91"
-description = "Rendezvous placement and node liveness for Turbolay cell writers"
+description = "Rendezvous placement and node liveness for HydraDB cell writers"
 publish = false
 
 # Still no dependency on `slatedb-graph-kernel`: placement must not know about

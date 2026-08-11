@@ -9,6 +9,42 @@ async fn open_test_shard(path: &str, object_store: Arc<dyn ObjectStore>) -> Grap
         .unwrap()
 }
 
+#[tokio::test]
+async fn sparse_wal_flushes_reach_l0_at_the_default_count_bound() {
+    let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+    let path = "graph/sparse-wal-l0-bound";
+    let shard = open_test_shard(path, Arc::clone(&object_store)).await;
+
+    for id in 0..GraphStorageMemoryConfig::DEFAULT_MAX_WAL_FLUSHES_BEFORE_L0_FLUSH {
+        shard
+            .write_edge(typed_mutation(
+                "cell-a",
+                "SPARSE",
+                id,
+                id + 1,
+                &format!("sparse-wal-{id}"),
+            ))
+            .await
+            .unwrap();
+    }
+
+    let l0_prefix: slatedb::object_store::path::Path = format!("{path}/compacted").into();
+    let mut l0_created = false;
+    for _ in 0..100 {
+        if object_store.list(Some(&l0_prefix)).next().await.is_some() {
+            l0_created = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+
+    assert!(
+        l0_created,
+        "sparse durable WAL flushes must consolidate into L0 at the configured count bound"
+    );
+    shard.close().await.unwrap();
+}
+
 /// A placement view over a hand-picked fleet, for tests whose subject is not
 /// placement.
 ///
@@ -861,6 +897,76 @@ async fn native_sp_paths_uses_one_pinned_graphblas_snapshot_with_wal_tail() {
 
 #[cfg(feature = "opencypher")]
 #[tokio::test]
+async fn native_paths_charge_compiled_and_overlay_edges_to_the_scan_limit() {
+    let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+    let path = "graph/native-path-overlay-scan-limit";
+    let writer = open_test_shard(path, Arc::clone(&object_store)).await;
+    writer
+        .write_edge(typed_mutation(
+            "cell-a",
+            "CHAIN",
+            1,
+            2,
+            "native-path-overlay-base",
+        ))
+        .await
+        .unwrap();
+
+    let indexer = GraphShard::open(path, Arc::clone(&object_store))
+        .await
+        .unwrap();
+    indexer.refresh_storage_sequence("cell-a").await.unwrap();
+    indexer.build_graph_index("cell-a", "CHAIN").await.unwrap();
+
+    for (index, dst) in [3, 4].into_iter().enumerate() {
+        writer
+            .write_edge(typed_mutation(
+                "cell-a",
+                "CHAIN",
+                1,
+                dst,
+                &format!("native-path-overlay-add-{index}"),
+            ))
+            .await
+            .unwrap();
+    }
+
+    let reader = GraphShard::open_with_limits(
+        path,
+        object_store,
+        GraphLimits {
+            max_query_scan_edges: 3,
+            ..GraphLimits::default()
+        },
+    )
+    .await
+    .unwrap();
+    reader.refresh_storage_sequence("cell-a").await.unwrap();
+    let error = reader
+        .execute_cypher_rows(
+            QueryContext::new("cell-a", "native-path-overlay-limit"),
+            "CALL algo.SPpaths({sourceNode: 1, targetNode: 4, relTypes: ['CHAIN'], \
+             maxLen: 1, relDirection: 'outgoing', pathCount: 1}) \
+             YIELD path RETURN path",
+        )
+        .await
+        .expect_err("compiled and overlay scan work must share one admission limit");
+    assert!(matches!(
+        error,
+        GraphError::AdmissionRejected {
+            operation: "native_path_edges",
+            actual: 4,
+            limit: 3,
+        }
+    ));
+
+    reader.close().await.unwrap();
+    indexer.close().await.unwrap();
+    writer.close().await.unwrap();
+}
+
+#[cfg(feature = "opencypher")]
+#[tokio::test]
 async fn native_sp_paths_honors_weight_cost_and_parameterized_limits() {
     let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
     let shard = open_test_shard("graph/native-sp-paths-weighted", object_store).await;
@@ -1170,6 +1276,63 @@ async fn native_ms_paths_fairly_budgets_parallel_variants_across_structures() {
         BTreeSet::from([(1, 2), (2, 3)]),
         "one dense pair must not consume the complete native result budget"
     );
+
+    shard.close().await.unwrap();
+}
+
+#[cfg(feature = "opencypher")]
+#[tokio::test]
+async fn native_ms_paths_result_cache_is_invalidated_by_storage_epoch() {
+    let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+    let shard = open_test_shard("graph/native-ms-paths-result-cache", object_store).await;
+    shard
+        .execute_cypher(
+            QueryContext::new("cell-a", "native-ms-cache-create-ab"),
+            "CREATE (a:Entity {id: 1, name: 'alpha'})-[:RELATES]->(b:Entity {id: 2, name: 'beta'})",
+        )
+        .await
+        .unwrap();
+    shard
+        .set_vertex_metadata(
+            "cell-a",
+            3,
+            VertexMetadata::default()
+                .with_label("Entity")
+                .with_property("name", VertexPropertyValue::String("gamma".to_string())),
+        )
+        .await
+        .unwrap();
+    shard.build_graph_index("cell-a", "RELATES").await.unwrap();
+
+    let query = "CALL algo.MSpaths({sourceLabel: 'Entity', sourceProperty: 'name', \
+                 sourceValues: ['alpha', 'gamma'], targetValues: ['alpha', 'gamma'], \
+                 pairwise: true, relTypes: ['RELATES'], maxLen: 2, relDirection: 'outgoing', \
+                 pathCount: 1, resultLimit: 10}) YIELD path RETURN path";
+    for request_id in ["native-ms-cache-miss", "native-ms-cache-hit"] {
+        let result = shard
+            .execute_cypher_rows(QueryContext::new("cell-a", request_id), query)
+            .await
+            .unwrap();
+        assert!(result.rows.is_empty());
+    }
+    assert_eq!(shard.native_path_result_cache.lock().await.len(), 1);
+
+    shard
+        .execute_cypher(
+            QueryContext::new("cell-a", "native-ms-cache-create-bg"),
+            "CREATE (b:Entity {id: 2, name: 'beta'})-[:RELATES]->(c:Entity {id: 3, name: 'gamma'})",
+        )
+        .await
+        .unwrap();
+    let result = shard
+        .execute_cypher_rows(
+            QueryContext::new("cell-a", "native-ms-cache-new-epoch"),
+            query,
+        )
+        .await
+        .unwrap();
+    assert_eq!(result.rows.len(), 1);
+    assert_eq!(shard.native_path_result_cache.lock().await.len(), 2);
 
     shard.close().await.unwrap();
 }
@@ -4119,7 +4282,7 @@ async fn routed_cluster_lease_prevents_cross_node_writer_fencing() {
 /// all three nodes hold the same fleet view, so rendezvous names exactly one
 /// owner and the other two are refused at the gate instead of taking the epoch.
 ///
-/// The winner is computed here from `turbolay_placement::hash::owner` rather
+/// The winner is computed here from `hydradb_placement::hash::owner` rather
 /// than read back off whichever node happened to promote. A test that observed
 /// the winner would still pass if ownership were settled by a coin flip, and a
 /// coin flip is what the incident was.
@@ -4152,7 +4315,7 @@ async fn three_nodes_writing_one_cell_at_once_leave_one_writer_and_a_bounded_epo
 
     let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
     let scope = GraphScope::default();
-    let expected_owner = turbolay_placement::hash::owner(&scope.to_string(), CELL, &FLEET)
+    let expected_owner = hydradb_placement::hash::owner(&scope.to_string(), CELL, &FLEET)
         .expect("a non-empty fleet has an owner");
     let directory = ObjectStoreNodeDirectory::new([CELL], FLEET).unwrap();
 
@@ -7871,6 +8034,137 @@ async fn relationship_property_delete_retry_does_not_expand_to_recreated_structu
         .edge_exists("reddit-home", "RELATES", 40, 41)
         .await
         .unwrap());
+}
+
+#[cfg(feature = "opencypher")]
+#[tokio::test]
+async fn relationship_merge_batch_preserves_identity_and_updates_at_scale() {
+    const BATCH_SIZE: u64 = 64;
+
+    let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+    let shard = open_test_shard("graph/relationship-merge-batch", object_store).await;
+    let vertices = (0..BATCH_SIZE).flat_map(|index| {
+        [
+            (index + 1, VertexMetadata::default().with_label("Entity")),
+            (
+                index + 10_001,
+                VertexMetadata::default().with_label("Chunk"),
+            ),
+        ]
+    });
+    assert_eq!(
+        shard
+            .import_vertex_metadata_batch("reddit-home", vertices)
+            .await
+            .unwrap(),
+        (BATCH_SIZE * 2) as usize
+    );
+
+    let relationships = |rank| {
+        (0..BATCH_SIZE).map(move |index| {
+            let external_id = 50_000 + index;
+            RelationshipMutation {
+                cell_id: "reddit-home".to_string(),
+                edge_type: "PRESENT_IN".to_string(),
+                src: index + 1,
+                dst: index + 10_001,
+                relationship_id: external_id,
+                metadata: EdgeMetadata::default()
+                    .with_property("id", VertexPropertyValue::Integer(external_id))
+                    .with_property("rank", VertexPropertyValue::Integer(rank)),
+            }
+        })
+    };
+    let inserted = shard
+        .merge_relationships_batch_between_labeled_vertices(
+            "reddit-home",
+            "PRESENT_IN",
+            relationships(1),
+            "relationship-merge-batch-insert",
+            ("Entity", "Chunk"),
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(inserted.relationships_inserted, BATCH_SIZE);
+    assert_eq!(inserted.structural_edges_inserted, BATCH_SIZE);
+
+    let unchanged = shard
+        .merge_relationships_batch_between_labeled_vertices(
+            "reddit-home",
+            "PRESENT_IN",
+            relationships(1),
+            "relationship-merge-batch-unchanged",
+            ("Entity", "Chunk"),
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(unchanged.relationships_inserted, 0);
+    assert_eq!(unchanged.relationships_already_existed, BATCH_SIZE);
+    assert_eq!(unchanged.structural_edges_inserted, 0);
+
+    let updated = shard
+        .merge_relationships_batch_between_labeled_vertices(
+            "reddit-home",
+            "PRESENT_IN",
+            relationships(2),
+            "relationship-merge-batch-update",
+            ("Entity", "Chunk"),
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(updated.relationships_inserted, 0);
+    assert_eq!(updated.relationships_already_existed, BATCH_SIZE);
+    assert_eq!(
+        shard
+            .read_counter(&keys::last_relationship_id("reddit-home"))
+            .await
+            .unwrap(),
+        BATCH_SIZE
+    );
+    for index in 0..BATCH_SIZE {
+        assert_eq!(
+            shard
+                .out_degree("reddit-home", "PRESENT_IN", index + 1)
+                .await
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            shard
+                .read_counter(&keys::relationship_count(
+                    "reddit-home",
+                    "PRESENT_IN",
+                    index + 1,
+                    index + 10_001,
+                ))
+                .await
+                .unwrap(),
+            1
+        );
+        let key = keys::relationship(
+            "reddit-home",
+            "PRESENT_IN",
+            index + 1,
+            index + 10_001,
+            index + 1,
+        );
+        let record =
+            decode_relationship_record(&key, &shard.read_remote(&key).await.unwrap().unwrap())
+                .unwrap();
+        assert_eq!(
+            record.metadata.properties.get("id"),
+            Some(&VertexPropertyValue::Integer(50_000 + index))
+        );
+        assert_eq!(
+            record.metadata.properties.get("rank"),
+            Some(&VertexPropertyValue::Integer(2))
+        );
+    }
+
+    shard.close().await.unwrap();
 }
 
 #[cfg(feature = "opencypher")]
@@ -11941,6 +12235,65 @@ async fn cypher_row_engine_rejects_excess_intermediate_rows() {
             limit: 1
         }
     ));
+}
+
+#[cfg(feature = "opencypher")]
+#[tokio::test]
+async fn cypher_bound_one_hop_scan_limit_ignores_unrelated_edges() {
+    let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
+    let shard = GraphShard::open_standalone_writer_with_options(
+        "graph/cypher-bound-one-hop-source-local",
+        object_store,
+        GraphOpenOptions {
+            limits: GraphLimits {
+                max_query_scan_edges: 1,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    for vertex_id in [1, 2] {
+        shard
+            .set_vertex_metadata(
+                "reddit-home",
+                vertex_id,
+                VertexMetadata::default().with_label("User"),
+            )
+            .await
+            .unwrap();
+    }
+    for (index, (src, dst)) in [(1, 2), (100, 101), (200, 201)].into_iter().enumerate() {
+        shard
+            .write_edge(EdgeMutation {
+                cell_id: "reddit-home".to_string(),
+                edge_type: "FOLLOWS".to_string(),
+                src,
+                dst,
+                idempotency_key: format!("cypher-bound-one-hop-source-local-{index}"),
+            })
+            .await
+            .unwrap();
+    }
+
+    let rows = shard
+        .execute_cypher_rows(
+            QueryContext::new("reddit-home", "cypher-bound-one-hop-source-local-read"),
+            "MATCH (u:User {id: 1})-[:FOLLOWS]->(v:User) RETURN v.id",
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        rows,
+        QueryResultSet::new(
+            vec![QueryColumn::new("v.id")],
+            vec![QueryRow::new(vec![QueryValue::VertexId(2)])],
+        )
+    );
+
+    shard.close().await.unwrap();
 }
 
 #[cfg(feature = "opencypher")]

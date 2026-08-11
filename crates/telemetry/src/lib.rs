@@ -1,11 +1,11 @@
-//! Telemetry for the Turbolay binaries: one subscriber, two service
+//! Telemetry for the HydraDB binaries: one subscriber, two service
 //! identities, and an optional OTLP pipeline for logs and traces.
 //!
 //! # The shape of this crate
 //!
-//! `turbolay-telemetry` does **not** depend on `slatedb-graph-kernel`, and the
+//! `hydradb-telemetry` does **not** depend on `slatedb-graph-kernel`, and the
 //! kernel must not gain a dependency on it. The arrow points this way for the
-//! same reason it does in `turbolay-placement`: the kernel emits through the
+//! same reason it does in `hydradb-placement`: the kernel emits through the
 //! plain [`tracing`] facade — which compiles to a no-op when no subscriber is
 //! installed, so it stays free in tests and benchmarks — and this crate owns
 //! only the *subscriber* side, deciding how those spans and events become OTLP.
@@ -17,10 +17,10 @@
 //! # Usage
 //!
 //! ```no_run
-//! use turbolay_telemetry::{ServiceIdentity, TelemetryConfig};
+//! use hydradb_telemetry::{ServiceIdentity, TelemetryConfig};
 //!
-//! # fn main() -> Result<(), turbolay_telemetry::TelemetryError> {
-//! let guard = turbolay_telemetry::init(TelemetryConfig::from_env(
+//! # fn main() -> Result<(), hydradb_telemetry::TelemetryError> {
+//! let guard = hydradb_telemetry::init(TelemetryConfig::from_env(
 //!     ServiceIdentity::GraphNode,
 //! ))?;
 //! // … run the server …
@@ -73,7 +73,7 @@
 //!    [`init`], and hold the returned guard until the end of `main`.
 //!
 //! Until step 1 lands, build and test it directly:
-//! `cargo test -p turbolay-telemetry --features otlp`.
+//! `cargo test -p hydradb-telemetry --features otlp`.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

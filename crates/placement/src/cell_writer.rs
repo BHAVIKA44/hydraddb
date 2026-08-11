@@ -312,7 +312,7 @@ mod tests {
             "cell-a",
             "cell_a",
             "reddit-search",
-            "turbolay.cell.0",
+            "hydradb.cell.0",
             "A9",
             "n",
             "0",

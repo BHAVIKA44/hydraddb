@@ -8,7 +8,7 @@
 //!
 //! Mapping `GraphError` to a class needs to name kernel types, and this crate
 //! deliberately does not depend on the kernel — the same rule
-//! `turbolay-placement` follows. So the *vocabulary* is defined here, where
+//! `hydradb-placement` follows. So the *vocabulary* is defined here, where
 //! every sink can see it, and the *mapping* is a `GraphError::class()` method
 //! to be added on the kernel side when the paths are instrumented. That is the
 //! open decision recorded in §8 of the plan, and it is resolved in the

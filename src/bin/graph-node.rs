@@ -29,9 +29,9 @@ use slatedb_graph_kernel::{
     ObjectStoreNodeDirectory, PlacementConfig, PlacementView, QueryTransportAction,
     QueryTransportScopeGrant, ScopedRoutedGraphCluster, StaticQueryTransportScopeAuthorizer,
 };
-use turbolay_placement::heartbeat::{delete_heartbeat, put_heartbeat, validate_node_id, Heartbeat};
-use turbolay_placement::liveness::HeartbeatAction;
-use turbolay_telemetry::{ServiceIdentity, TelemetryConfig};
+use hydradb_placement::heartbeat::{delete_heartbeat, put_heartbeat, validate_node_id, Heartbeat};
+use hydradb_placement::liveness::HeartbeatAction;
+use hydradb_telemetry::{ServiceIdentity, TelemetryConfig};
 
 type RuntimeResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -40,7 +40,7 @@ type RuntimeResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 /// This adapter exists here, in the binary, because it is the only place
 /// entitled to name both sides. The kernel declares `TraceContextBridge` but
 /// cannot implement it — a `tracing` span id is an internal subscriber handle,
-/// not an OpenTelemetry trace id. `turbolay-telemetry` can perform both
+/// not an OpenTelemetry trace id. `hydradb-telemetry` can perform both
 /// operations but must not name the kernel's trait, because depending on the
 /// kernel would reverse the arrow that keeps `opentelemetry-*` out of
 /// `cargo test`. So neither library depends on the other and the composition
@@ -56,11 +56,11 @@ fn install_trace_context_bridge() {
 
     impl slatedb_graph_kernel::TraceContextBridge for Bridge {
         fn current_traceparent(&self) -> Option<String> {
-            turbolay_telemetry::bridge::current_traceparent()
+            hydradb_telemetry::bridge::current_traceparent()
         }
 
         fn adopt_remote_parent(&self, span: &tracing::Span, traceparent: &str) {
-            turbolay_telemetry::bridge::adopt_remote_parent(span, traceparent);
+            hydradb_telemetry::bridge::adopt_remote_parent(span, traceparent);
         }
     }
 
@@ -88,7 +88,7 @@ async fn main() -> RuntimeResult<()> {
     // value, and the two parses differ: `TelemetryConfig` rejects a zero that
     // the SDK silently ignores.
     let metric_export_interval = telemetry_config.metric_export_interval;
-    let telemetry = turbolay_telemetry::init(telemetry_config)?;
+    let telemetry = hydradb_telemetry::init(telemetry_config)?;
     install_trace_context_bridge();
 
     let result = boot(&telemetry, metric_export_interval).await;
@@ -113,7 +113,7 @@ async fn main() -> RuntimeResult<()> {
 /// meter's final collection at shutdown happens after the task has stopped
 /// publishing into it.
 async fn boot(
-    telemetry: &turbolay_telemetry::TelemetryGuard,
+    telemetry: &hydradb_telemetry::TelemetryGuard,
     metric_export_interval: Duration,
 ) -> RuntimeResult<()> {
     let config = RuntimeConfig::from_env()?;
@@ -123,7 +123,7 @@ async fn boot(
 
 async fn run_node(
     config: RuntimeConfig,
-    telemetry: &turbolay_telemetry::TelemetryGuard,
+    telemetry: &hydradb_telemetry::TelemetryGuard,
     metric_export_interval: Duration,
 ) -> RuntimeResult<()> {
     let started_at = Utc::now();

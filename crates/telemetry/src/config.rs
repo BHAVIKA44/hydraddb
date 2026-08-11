@@ -22,8 +22,8 @@ impl ServiceIdentity {
     /// groups and filters by.
     pub fn service_name(self) -> &'static str {
         match self {
-            Self::GraphNode => "turbolay-graph-node",
-            Self::GraphIndexer => "turbolay-graph-indexer",
+            Self::GraphNode => "hydradb-graph-node",
+            Self::GraphIndexer => "hydradb-graph-indexer",
         }
     }
 
@@ -166,7 +166,7 @@ impl TelemetryConfig {
     ///
     /// Standard `OTEL_*` names wherever OTel defines one — the collector
     /// sidecar already sets those, and nobody should have to learn a
-    /// Turbolay-specific spelling for an endpoint.
+    /// HydraDB-specific spelling for an endpoint.
     ///
     /// **An unset `OTEL_EXPORTER_OTLP_ENDPOINT` means no exporter.** Tests,
     /// `cargo run` and the examples must not need a collector, must not block

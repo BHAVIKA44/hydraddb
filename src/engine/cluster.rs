@@ -3,7 +3,7 @@ use crate::keys;
 
 use chrono::Utc;
 use tracing::Instrument as _;
-use turbolay_placement::cell_writer::{self, CellWriterRecord};
+use hydradb_placement::cell_writer::{self, CellWriterRecord};
 
 /// Stamp a failure onto the span that raised it.
 ///
@@ -556,17 +556,17 @@ impl RoutedGraphCluster {
     /// `writer.acquire` is the span the whole of §4 exists to produce. The
     /// `cell-writer-fencing-pingpong` incident — three nodes trading one cell's
     /// epoch — is invisible as scattered `Fenced` errors and obvious as a span
-    /// tree: three traces, three `turbolay.node_id`s, one `turbolay.cell_id`,
-    /// and `turbolay.writer.epoch` climbing on every acquisition. The epoch is
+    /// tree: three traces, three `hydradb.node_id`s, one `hydradb.cell_id`,
+    /// and `hydradb.writer.epoch` climbing on every acquisition. The epoch is
     /// recorded after the promotion because that is the only moment it is known.
     pub(crate) async fn ensure_local_writer(&self, cell_id: &str) -> Result<()> {
         let span = tracing::info_span!(
             "writer.acquire",
-            turbolay.scope = %self.scope,
-            turbolay.cell_id = %cell_id,
-            turbolay.node_id = %self.local_node_id,
-            turbolay.writer.epoch = tracing::field::Empty,
-            turbolay.writer.lease_generation = tracing::field::Empty,
+            hydradb.scope = %self.scope,
+            hydradb.cell_id = %cell_id,
+            hydradb.node_id = %self.local_node_id,
+            hydradb.writer.epoch = tracing::field::Empty,
+            hydradb.writer.lease_generation = tracing::field::Empty,
             error.class = tracing::field::Empty,
         );
         self.ensure_local_writer_traced(cell_id)
@@ -618,7 +618,7 @@ impl RoutedGraphCluster {
             .acquire_or_renew(&self.scope, cell_id, &self.local_node_id)
             .await
             .inspect_err(record_error_class)?;
-        tracing::Span::current().record("turbolay.writer.lease_generation", lease_generation);
+        tracing::Span::current().record("hydradb.writer.lease_generation", lease_generation);
 
         // Whether this shard already held a writer, taken *before* the call.
         // `promote_to_writer` is idempotent and says nothing about which of the
@@ -662,7 +662,7 @@ impl RoutedGraphCluster {
             // The climbing value in the ping-pong query. Taken from the
             // manifest, which is the authority; the advisory record written
             // below only ever repeats it.
-            tracing::Span::current().record("turbolay.writer.epoch", epoch);
+            tracing::Span::current().record("hydradb.writer.epoch", epoch);
         }
         if !already_writing {
             self.record_cell_writer(shard, cell_id).await;
@@ -680,10 +680,10 @@ impl RoutedGraphCluster {
     fn resolve_placement(&self, cell_id: &str) -> Result<()> {
         let span = tracing::info_span!(
             "placement.resolve",
-            turbolay.scope = %self.scope,
-            turbolay.cell_id = %cell_id,
-            turbolay.node_id = %self.local_node_id,
-            turbolay.placement.ownership = tracing::field::Empty,
+            hydradb.scope = %self.scope,
+            hydradb.cell_id = %cell_id,
+            hydradb.node_id = %self.local_node_id,
+            hydradb.placement.ownership = tracing::field::Empty,
             error.class = tracing::field::Empty,
         );
         let _entered = span.enter();
@@ -694,7 +694,7 @@ impl RoutedGraphCluster {
         // failures alone — a rate needs its denominator, and the successful
         // `local` case is the denominator.
         span.record(
-            "turbolay.placement.ownership",
+            "hydradb.placement.ownership",
             match &ownership {
                 CellOwnership::Local => "local",
                 CellOwnership::Remote { .. } => "remote",
@@ -820,11 +820,11 @@ impl RoutedGraphCluster {
         let cap = self.placement.config().heartbeat_interval;
         let span = tracing::info_span!(
             "writer.reopen_wait",
-            turbolay.node_id = %self.local_node_id,
-            turbolay.cell_id = %cell_id,
-            turbolay.writer.reopen_delay_ms = delay.as_millis(),
-            turbolay.writer.reopen_cap_ms = cap.as_millis(),
-            turbolay.outcome = tracing::field::Empty,
+            hydradb.node_id = %self.local_node_id,
+            hydradb.cell_id = %cell_id,
+            hydradb.writer.reopen_delay_ms = delay.as_millis(),
+            hydradb.writer.reopen_cap_ms = cap.as_millis(),
+            hydradb.outcome = tracing::field::Empty,
             error.class = tracing::field::Empty,
         );
         let result = async {
@@ -835,7 +835,7 @@ impl RoutedGraphCluster {
                     limit: cap.as_millis() as u64,
                 };
                 record_error_class(&error);
-                tracing::Span::current().record("turbolay.outcome", "failed");
+                tracing::Span::current().record("hydradb.outcome", "failed");
                 tracing::warn!(
                     operation = "writer_reopen",
                     delay_ms = delay.as_millis(),
@@ -852,7 +852,7 @@ impl RoutedGraphCluster {
                 "pacing a writer re-open"
             );
             tokio::time::sleep(delay).await;
-            tracing::Span::current().record("turbolay.outcome", "success");
+            tracing::Span::current().record("hydradb.outcome", "success");
             Ok(())
         }
         .instrument(span)
@@ -1886,7 +1886,7 @@ mod scoped_cluster_tests {
     use slatedb::object_store::memory::InMemory;
     use slatedb::object_store::path::Path;
     use slatedb::object_store::prefix::PrefixStore;
-    use turbolay_placement::heartbeat::{self, Heartbeat};
+    use hydradb_placement::heartbeat::{self, Heartbeat};
 
     use super::*;
     use crate::NamespaceId;
@@ -2183,7 +2183,7 @@ mod scoped_cluster_tests {
         let scope = (0..1_000)
             .map(|index| tenant_scope(&runtime, &format!("tenant-{index}")))
             .find(|scope| {
-                turbolay_placement::hash::owner(&scope.to_string(), "cell-0", &["node-a", "node-b"])
+                hydradb_placement::hash::owner(&scope.to_string(), "cell-0", &["node-a", "node-b"])
                     == Some("node-b")
             })
             .expect("one test scope moves from node-a to node-b");
@@ -2300,7 +2300,7 @@ mod scoped_cluster_tests {
         let scopes = (0..2_000)
             .map(|index| tenant_scope(&runtime, &format!("tenant-{index}")))
             .filter(|scope| {
-                turbolay_placement::hash::owner(&scope.to_string(), "cell-0", &["node-a", "node-b"])
+                hydradb_placement::hash::owner(&scope.to_string(), "cell-0", &["node-a", "node-b"])
                     == Some("node-b")
             })
             .take(2)
@@ -2948,7 +2948,7 @@ mod placement_gate_tests {
 
     /// The node rendezvous names for `CELL`, and one that it does not.
     fn owner_and_peer() -> (&'static str, &'static str) {
-        let owner = turbolay_placement::hash::owner(&scope_key(), CELL, FLEET)
+        let owner = hydradb_placement::hash::owner(&scope_key(), CELL, FLEET)
             .expect("a non-empty fleet has an owner");
         let peer = FLEET
             .iter()
@@ -3262,7 +3262,7 @@ mod cell_writer_record_tests {
         CopyOptions, GetOptions, GetResult, ListResult, MultipartUpload, ObjectMeta,
         PutMultipartOptions, PutOptions, PutPayload, PutResult,
     };
-    use turbolay_placement::cell_writer::{read_cell_writer, CellWriterRecord, CELL_WRITER_PREFIX};
+    use hydradb_placement::cell_writer::{read_cell_writer, CellWriterRecord, CELL_WRITER_PREFIX};
 
     const CELL: &str = "cell-a";
     const FLEET: &[&str] = &["node-a", "node-b", "node-c"];
@@ -3270,7 +3270,7 @@ mod cell_writer_record_tests {
     /// The node rendezvous names for `CELL`, and one that it does not.
     fn owner_and_peer() -> (&'static str, &'static str) {
         let scope = GraphScope::default().to_string();
-        let owner = turbolay_placement::hash::owner(&scope, CELL, FLEET)
+        let owner = hydradb_placement::hash::owner(&scope, CELL, FLEET)
             .expect("a non-empty fleet has an owner");
         let peer = FLEET
             .iter()
@@ -3427,7 +3427,7 @@ mod cell_writer_record_tests {
         cluster.close().await.unwrap();
     }
 
-    /// Rule 3 of the module docs on `turbolay_placement::cell_writer`, at the
+    /// Rule 3 of the module docs on `hydradb_placement::cell_writer`, at the
     /// only place that can honour it: the epoch is already claimed and the write
     /// is already committed by the time the record is attempted, so a store that
     /// refuses it must cost nothing but a `warn!`. The alternative — a write
@@ -3485,7 +3485,7 @@ mod cell_writer_record_tests {
         .await;
 
         let base = record_base(&cluster);
-        turbolay_placement::cell_writer::put_cell_writer(
+        hydradb_placement::cell_writer::put_cell_writer(
             store.as_ref(),
             &base,
             CELL,

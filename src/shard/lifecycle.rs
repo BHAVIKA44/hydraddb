@@ -236,6 +236,12 @@ impl GraphShard {
                 memory.max_relationship_property_rows_bytes,
             )),
             #[cfg(feature = "opencypher")]
+            native_path_result_cache: Mutex::new(BoundedGraphCache::new_with_byte_limit(
+                cache_policy.max_relationship_row_sets,
+                tenant_quota,
+                memory.max_relationship_rows_bytes,
+            )),
+            #[cfg(feature = "opencypher")]
             native_path_page_cursors: Mutex::new(Default::default()),
             wal_tail_file_cache: Mutex::new(Default::default()),
             xlog_floor_ensured: std::sync::RwLock::new(std::collections::HashSet::new()),
@@ -454,7 +460,7 @@ impl GraphShard {
     ) -> Result<()> {
         let span = tracing::info_span!(
             "writer.authority",
-            turbolay.cell_id = %cell_id,
+            hydradb.cell_id = %cell_id,
             error.class = tracing::field::Empty,
         );
         let _entered = span.enter();
@@ -511,15 +517,15 @@ impl GraphShard {
         }
         let span = tracing::info_span!(
             "writer.promote",
-            turbolay.cell_id = %cell_id,
-            turbolay.writer.epoch = tracing::field::Empty,
+            hydradb.cell_id = %cell_id,
+            hydradb.writer.epoch = tracing::field::Empty,
             error.class = tracing::field::Empty,
         );
         async {
             match self.db.promote_writer().await {
                 Ok(_) => {
                     if let Some(epoch) = self.db.writer_epoch() {
-                        tracing::Span::current().record("turbolay.writer.epoch", epoch);
+                        tracing::Span::current().record("hydradb.writer.epoch", epoch);
                     }
                     Ok(())
                 }

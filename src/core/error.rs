@@ -211,7 +211,7 @@ impl GraphError {
     /// two.
     ///
     /// The strings are the wire vocabulary and must stay identical to
-    /// `turbolay_telemetry::ErrorClass::as_str` minus its `other`, which nothing
+    /// `hydradb_telemetry::ErrorClass::as_str` minus its `other`, which nothing
     /// in this tree constructs.
     pub const CLASSES: [&'static str; 12] = [
         "contention",
@@ -258,7 +258,7 @@ impl GraphError {
     /// cannot group them, so it cannot chart a rate or alert on a change in
     /// one. This is the grouping key.
     ///
-    /// # Why the mapping is here rather than in `turbolay-telemetry`
+    /// # Why the mapping is here rather than in `hydradb-telemetry`
     ///
     /// This resolves the open decision in
     /// `docs/plans/2026-07-26-otel-telemetry-crate.md` §8 in favour of an

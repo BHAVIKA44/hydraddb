@@ -21,7 +21,7 @@
 //! The last two tests do use a socket, deliberately. Everything above them
 //! proves the *rendering* is right; they prove the pipeline is **connected** —
 //! that a series recorded through the handle
-//! [`turbolay_telemetry::TelemetryGuard::providers`] returns actually leaves the
+//! [`hydradb_telemetry::TelemetryGuard::providers`] returns actually leaves the
 //! process as OTLP. That is a different claim, and it is the one that was false
 //! for two commits while every rendering test passed: the meter provider was
 //! built, held and unreachable. A test that constructs an `SdkMeterProvider`
@@ -41,15 +41,15 @@ use opentelemetry_sdk::metrics::exporter::PushMetricExporter;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider, Temporality};
 
 use opentelemetry::metrics::MeterProvider as _;
-use turbolay_telemetry::meter::{
+use hydradb_telemetry::meter::{
     CounterSpec, CounterUnit, HistogramSpec, HistogramUnit, ObservableCounter, ObservableHistogram,
     LE_INFINITY,
 };
-use turbolay_telemetry::semconv::{
+use hydradb_telemetry::semconv::{
     DB_OPERATION_READ, DB_OPERATION_WRITE, DB_SYSTEM_NEO4J, LE, L_CELL_ID, L_DB_OPERATION_NAME,
     L_DB_SYSTEM_NAME,
 };
-use turbolay_telemetry::{ServiceIdentity, TelemetryConfig};
+use hydradb_telemetry::{ServiceIdentity, TelemetryConfig};
 
 /// One exported series, flattened to what the assertions are about.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -169,7 +169,7 @@ fn the_bucket_family_reaches_the_exporter_with_le_labels() {
         .with_interval(Duration::from_secs(3_600))
         .build();
     let provider = SdkMeterProvider::builder().with_reader(reader).build();
-    let meter = provider.meter("turbolay.test");
+    let meter = provider.meter("hydradb.test");
 
     let histogram = ObservableHistogram::register(
         &meter,
@@ -254,12 +254,12 @@ fn an_unrecorded_histogram_exports_nothing() {
         .with_interval(Duration::from_secs(3_600))
         .build();
     let provider = SdkMeterProvider::builder().with_reader(reader).build();
-    let meter = provider.meter("turbolay.test");
+    let meter = provider.meter("hydradb.test");
 
     let _histogram = ObservableHistogram::register(
         &meter,
         HistogramSpec {
-            name: "turbolay.query.rows.duration",
+            name: "hydradb.query.rows.duration",
             description: "shard row-query latency",
             unit: HistogramUnit::Microseconds,
         },
@@ -293,7 +293,7 @@ fn read_and_write_share_one_instrument_and_stay_two_series() {
         .with_interval(Duration::from_secs(3_600))
         .build();
     let provider = SdkMeterProvider::builder().with_reader(reader).build();
-    let meter = provider.meter("turbolay.test");
+    let meter = provider.meter("hydradb.test");
 
     let histogram = ObservableHistogram::register(
         &meter,
@@ -407,12 +407,12 @@ fn a_counter_reaches_the_exporter_as_a_monotonic_sum_per_cell() {
         .with_interval(Duration::from_secs(3_600))
         .build();
     let provider = SdkMeterProvider::builder().with_reader(reader).build();
-    let meter = provider.meter("turbolay.test");
+    let meter = provider.meter("hydradb.test");
 
     let counter = ObservableCounter::register(
         &meter,
         CounterSpec {
-            name: "turbolay.shard.gc.duration.sum",
+            name: "hydradb.shard.gc.duration.sum",
             description: "cumulative microseconds spent in GC",
             unit: CounterUnit::Microseconds,
         },
@@ -436,7 +436,7 @@ fn a_counter_reaches_the_exporter_as_a_monotonic_sum_per_cell() {
         captured,
         vec![
             Series {
-                metric: "turbolay.shard.gc.duration.sum".to_string(),
+                metric: "hydradb.shard.gc.duration.sum".to_string(),
                 unit: "us".to_string(),
                 cell_id: Some("cell-a".to_string()),
                 operation: None,
@@ -445,7 +445,7 @@ fn a_counter_reaches_the_exporter_as_a_monotonic_sum_per_cell() {
                 monotonic: true,
             },
             Series {
-                metric: "turbolay.shard.gc.duration.sum".to_string(),
+                metric: "hydradb.shard.gc.duration.sum".to_string(),
                 unit: "us".to_string(),
                 cell_id: Some("cell-b".to_string()),
                 operation: None,
@@ -476,9 +476,9 @@ fn an_unrecorded_counter_exports_nothing() {
     let provider = SdkMeterProvider::builder().with_reader(reader).build();
 
     let _counter = ObservableCounter::register(
-        &provider.meter("turbolay.test"),
+        &provider.meter("hydradb.test"),
         CounterSpec {
-            name: "turbolay.shard.write.retries",
+            name: "hydradb.shard.write.retries",
             description: "write retries",
             unit: CounterUnit::Count,
         },
@@ -575,13 +575,13 @@ fn contains(haystack: &[u8], needle: &str) -> bool {
 /// Every other test in this file builds its own `SdkMeterProvider`, which is
 /// exactly the step production code was missing — so none of them could fail
 /// while the metrics path was unreachable, and none of them did. This one goes
-/// through `turbolay_telemetry::init`, so it exercises the accessor, the
+/// through `hydradb_telemetry::init`, so it exercises the accessor, the
 /// `PeriodicReader`'s own OS thread, the blocking HTTP client that thread
 /// requires, and the endpoint composition in `otlp::build`. If any one of those
 /// is wrong, nothing arrives.
 ///
 /// Both instrument kinds are asserted in **one** test rather than two, and that is
-/// a constraint rather than a convenience: `turbolay_telemetry::init` installs the
+/// a constraint rather than a convenience: `hydradb_telemetry::init` installs the
 /// process-global `tracing` subscriber, so a second call in the same test binary
 /// returns `TelemetryError::AlreadyInitialised`. One process, one `init`, one
 /// guard — so the counter's proof of export shares this one, which incidentally
@@ -603,12 +603,12 @@ fn a_metric_recorded_through_the_guards_meter_reaches_an_otlp_exporter() {
     config.metric_export_interval = Duration::from_millis(200);
     config.export_timeout = Duration::from_secs(5);
 
-    let guard = turbolay_telemetry::init(config).expect("telemetry installs");
+    let guard = hydradb_telemetry::init(config).expect("telemetry installs");
     let (histogram, counter) = {
         let providers = guard
             .providers()
             .expect("an endpoint must produce providers");
-        let meter = providers.meter("turbolay.graph_node");
+        let meter = providers.meter("hydradb.graph_node");
         (
             ObservableHistogram::register(
                 &meter,
@@ -623,7 +623,7 @@ fn a_metric_recorded_through_the_guards_meter_reaches_an_otlp_exporter() {
             ObservableCounter::register(
                 &meter,
                 CounterSpec {
-                    name: "turbolay.shard.write.retries",
+                    name: "hydradb.shard.write.retries",
                     description: "optimistic write retries",
                     unit: CounterUnit::Count,
                 },
@@ -672,7 +672,7 @@ fn a_metric_recorded_through_the_guards_meter_reaches_an_otlp_exporter() {
                     // every callback registered on the meter, so a counter
                     // arriving a cycle later than the histogram would mean the
                     // two are not on one pipeline.
-                    && contains(body, "turbolay.shard.write.retries")
+                    && contains(body, "hydradb.shard.write.retries")
             })
             .map(|(_, body)| body.clone());
         if let Some(body) = found {
@@ -719,14 +719,14 @@ fn a_metric_recorded_through_the_guards_meter_reaches_an_otlp_exporter() {
     );
     // The deliberate semconv non-conformance, asserted rather than described:
     // `db.namespace` is required-if-applicable and it is applicable — the
-    // namespace is `turbolay.scope`, which is the unbounded tenant root the
+    // namespace is `hydradb.scope`, which is the unbounded tenant root the
     // label registry exists to keep off metrics. Its absence is the design.
     assert!(
         !contains(&body, "db.namespace"),
         "db.namespace reached the exporter; its only value is the unbounded scope"
     );
     assert!(
-        !contains(&body, "turbolay.scope"),
+        !contains(&body, "hydradb.scope"),
         "the tenant root reached a metric label"
     );
 }

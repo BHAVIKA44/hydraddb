@@ -1,4 +1,4 @@
-//! The `turbolay.*` attribute registry.
+//! The `hydradb.*` attribute registry.
 //!
 //! One table, used by all three paths. Consistency is the whole point: the
 //! read, write and indexing paths correlate through *attribute equality* — no
@@ -25,7 +25,7 @@
 //!
 //! - **Unbounded by construction.** [`SCOPE`] grows with tenant count,
 //!   [`CORRELATION_ID`] takes one value per request, [`CALLER_STEP`] is
-//!   supplied by a process Turbolay does not control, and
+//!   supplied by a process HydraDB does not control, and
 //!   [`QUERY_FINGERPRINT`] is minted *before* validation, so an authenticated
 //!   client can mint series directly. [`QUERY_ACCESS_PATH`] and
 //!   [`QUERY_OPTIMIZER_PASSES`] are comma-joined sequences and therefore
@@ -50,76 +50,76 @@
 //! [`crate::redact`] rather than left to call-site discipline.
 
 /// Graph scope — the tenant root. See the cardinality note above.
-pub const SCOPE: &str = "turbolay.scope";
+pub const SCOPE: &str = "hydradb.scope";
 
 /// Cell identifier. **The** join key across the read, write and indexing paths.
-pub const CELL_ID: &str = "turbolay.cell_id";
+pub const CELL_ID: &str = "hydradb.cell_id";
 
 /// Which `graph-node` this span ran on.
-pub const NODE_ID: &str = "turbolay.node_id";
+pub const NODE_ID: &str = "hydradb.node_id";
 
 /// The epoch a read was pinned to. Mandatory on read-path spans: the whole
 /// BFG-007 / BFG-009 / BFG-011 family of bugs is a question about this value
 /// versus what was actually visible.
-pub const READ_EPOCH: &str = "turbolay.read_epoch";
+pub const READ_EPOCH: &str = "hydradb.read_epoch";
 
 /// Epoch returned by a successful commit.
-pub const COMMIT_EPOCH: &str = "turbolay.commit_epoch";
+pub const COMMIT_EPOCH: &str = "hydradb.commit_epoch";
 
 /// Compiled artifact generation. Carried on both the indexing path (what was
 /// produced) and the read path (what was consumed).
-pub const GENERATION: &str = "turbolay.generation";
+pub const GENERATION: &str = "hydradb.generation";
 
 /// The storage sequence a generation was built from.
-pub const BASE_SEQUENCE: &str = "turbolay.base_sequence";
+pub const BASE_SEQUENCE: &str = "hydradb.base_sequence";
 
 /// Edge type. Bounded by schema, safe as a dimension.
-pub const EDGE_TYPE: &str = "turbolay.edge_type";
+pub const EDGE_TYPE: &str = "hydradb.edge_type";
 
 /// Query shape hash with parameters elided. Never the query text.
-pub const QUERY_FINGERPRINT: &str = "turbolay.query.fingerprint";
+pub const QUERY_FINGERPRINT: &str = "hydradb.query.fingerprint";
 
 /// Per-pattern access path, from the planner's `RowQueryPlan`.
-pub const QUERY_ACCESS_PATH: &str = "turbolay.query.access_path";
+pub const QUERY_ACCESS_PATH: &str = "hydradb.query.access_path";
 
 /// Optimizer passes the plan went through.
-pub const QUERY_OPTIMIZER_PASSES: &str = "turbolay.query.optimizer_passes";
+pub const QUERY_OPTIMIZER_PASSES: &str = "hydradb.query.optimizer_passes";
 
 /// Planner's cardinality estimate.
-pub const QUERY_ROWS_ESTIMATED: &str = "turbolay.query.rows_estimated";
+pub const QUERY_ROWS_ESTIMATED: &str = "hydradb.query.rows_estimated";
 
 /// Rows actually returned. The pair with [`QUERY_ROWS_ESTIMATED`] is how a
 /// mis-costed plan is spotted without reading the planner.
-pub const QUERY_ROWS_RETURNED: &str = "turbolay.query.rows_returned";
+pub const QUERY_ROWS_RETURNED: &str = "hydradb.query.rows_returned";
 
 /// The alarm bit: the plan contained a full scan or a fallback pass. Set it
 /// regardless of elapsed time — a full-scanning query that returns in 3ms today
 /// is a timeout after the tenant grows, and only this attribute sees it coming.
-pub const QUERY_FULL_SCAN: &str = "turbolay.query.full_scan";
+pub const QUERY_FULL_SCAN: &str = "hydradb.query.full_scan";
 
 /// Which rung of the sparse-kernel ladder served the traversal.
-pub const KERNEL: &str = "turbolay.kernel";
+pub const KERNEL: &str = "hydradb.kernel";
 
 /// SlateDB writer epoch held during a write.
-pub const WRITER_EPOCH: &str = "turbolay.writer.epoch";
+pub const WRITER_EPOCH: &str = "hydradb.writer.epoch";
 
 /// Retry count attributed to a single mutation. The kernel already counts
 /// retries in aggregate; this is what attributes them to one operation.
-pub const WRITER_RETRIES: &str = "turbolay.writer.retries";
+pub const WRITER_RETRIES: &str = "hydradb.writer.retries";
 
 /// Node named by the advisory cell-writer record as the last to promote.
 /// Grouping fence events by [`CELL_ID`] and counting distinct values of this
 /// attribute over a window is the writer ping-pong, as one query.
-pub const WRITER_LAST_PROMOTED_BY: &str = "turbolay.writer.last_promoted_by";
+pub const WRITER_LAST_PROMOTED_BY: &str = "hydradb.writer.last_promoted_by";
 
 /// Epoch recorded alongside [`WRITER_LAST_PROMOTED_BY`].
-pub const WRITER_LAST_PROMOTED_EPOCH: &str = "turbolay.writer.last_promoted_epoch";
+pub const WRITER_LAST_PROMOTED_EPOCH: &str = "hydradb.writer.last_promoted_epoch";
 
 /// Timestamp recorded alongside [`WRITER_LAST_PROMOTED_BY`].
-pub const WRITER_LAST_PROMOTED_AT: &str = "turbolay.writer.last_promoted_at";
+pub const WRITER_LAST_PROMOTED_AT: &str = "hydradb.writer.last_promoted_at";
 
 /// Requested read consistency.
-pub const CONSISTENCY: &str = "turbolay.consistency";
+pub const CONSISTENCY: &str = "hydradb.consistency";
 
 /// What rendezvous said about who owns the cell: `local`, `remote`, `unowned`
 /// or `unknown`.
@@ -135,26 +135,26 @@ pub const CONSISTENCY: &str = "turbolay.consistency";
 /// write land on a node that does not own the cell" is an inference from error
 /// strings rather than a query. Bounded to four values, so it is safe on a
 /// metric label as well as a span.
-pub const PLACEMENT_OWNERSHIP: &str = "turbolay.placement.ownership";
+pub const PLACEMENT_OWNERSHIP: &str = "hydradb.placement.ownership";
 
 /// Placement view state: `fresh`, `grace` or `shed`.
-pub const PLACEMENT_STATE: &str = "turbolay.placement.state";
+pub const PLACEMENT_STATE: &str = "hydradb.placement.state";
 
 /// Previous placement view state on a transition event.
-pub const PLACEMENT_PREVIOUS_STATE: &str = "turbolay.placement.previous_state";
+pub const PLACEMENT_PREVIOUS_STATE: &str = "hydradb.placement.previous_state";
 
 /// Number of live nodes carried by the current placement view.
-pub const PLACEMENT_LIVE_NODES: &str = "turbolay.placement.live_nodes";
+pub const PLACEMENT_LIVE_NODES: &str = "hydradb.placement.live_nodes";
 
 /// Delay applied before the next writer re-open attempt.
-pub const WRITER_REOPEN_DELAY_MS: &str = "turbolay.writer.reopen_delay_ms";
+pub const WRITER_REOPEN_DELAY_MS: &str = "hydradb.writer.reopen_delay_ms";
 
 /// Maximum delay one client request is allowed to wait for a writer re-open.
-pub const WRITER_REOPEN_CAP_MS: &str = "turbolay.writer.reopen_cap_ms";
+pub const WRITER_REOPEN_CAP_MS: &str = "hydradb.writer.reopen_cap_ms";
 
 /// Caller-supplied request identifier, read from Bolt `tx_metadata`.
 ///
-/// This is what joins a Turbolay span to the caller's own log line. Nothing
+/// This is what joins a HydraDB span to the caller's own log line. Nothing
 /// else does: the query fingerprint says *which statement*, and only this says
 /// *which invocation of it*.
 ///
@@ -165,14 +165,14 @@ pub const WRITER_REOPEN_CAP_MS: &str = "turbolay.writer.reopen_cap_ms";
 /// belongs in the spans-and-logs bucket alongside [`SCOPE`], more emphatically
 /// than [`SCOPE`] does.
 ///
-/// **Never minted by Turbolay.** An absent value stays absent. A
+/// **Never minted by HydraDB.** An absent value stays absent. A
 /// server-invented id matches nothing upstream and is worse than no field at
 /// all, because it looks like a join key and is not.
 ///
 /// **Untrusted.** It arrives from any Bolt client and becomes both a span
 /// attribute and a log field, so it is validated on arrival — bounded length,
 /// printable ASCII, rejected rather than truncated.
-pub const CORRELATION_ID: &str = "turbolay.correlation_id";
+pub const CORRELATION_ID: &str = "hydradb.correlation_id";
 
 /// Caller-supplied label for the operation that issued the statement, read
 /// from Bolt `tx_metadata` under the same rules as [`CORRELATION_ID`].
@@ -180,12 +180,12 @@ pub const CORRELATION_ID: &str = "turbolay.correlation_id";
 /// Where [`CORRELATION_ID`] identifies the request, this identifies the step
 /// within it — one caller operation may issue many statements, several of them
 /// looping over batches, and without this they are indistinguishable.
-pub const CALLER_STEP: &str = "turbolay.caller.step";
+pub const CALLER_STEP: &str = "hydradb.caller.step";
 
 /// Outcome of a unit of indexing work — see [`crate::Outcome`]. Distinguishing
 /// "nothing to do" from "not running" is most of what an indexer needs to
 /// report, and only an explicit outcome does that.
-pub const OUTCOME: &str = "turbolay.outcome";
+pub const OUTCOME: &str = "hydradb.outcome";
 
 /// Coarse failure class. See [`crate::ErrorClass`].
 pub const ERROR_CLASS: &str = "error.class";
@@ -208,7 +208,7 @@ pub const ERROR_CLASS: &str = "error.class";
 /// error, a full scan the planner only just found — cannot use this. Use
 /// [`SAMPLING_TAIL_KEEP`], which is the collector's input, and read
 /// [`crate::sampling`] for why the two cannot be the same key.
-pub const SAMPLING_FORCE: &str = "turbolay.sampling.force";
+pub const SAMPLING_FORCE: &str = "hydradb.sampling.force";
 
 /// Marks a trace as worth keeping *after* the fact, for the collector's
 /// tail-sampling processor.
@@ -223,7 +223,7 @@ pub const SAMPLING_FORCE: &str = "turbolay.sampling.force";
 /// already been dropped; no in-process mechanism can undo that. The separate
 /// name is what stops the two from being confused again — see
 /// [`crate::sampling`] for the collector policy this requires.
-pub const SAMPLING_TAIL_KEEP: &str = "turbolay.sampling.tail_keep";
+pub const SAMPLING_TAIL_KEEP: &str = "hydradb.sampling.tail_keep";
 
 /// [`SAMPLING_TAIL_KEEP`] value: the span recorded a failure.
 pub const SAMPLING_TAIL_KEEP_ERROR: &str = "error";
@@ -233,7 +233,7 @@ pub const SAMPLING_TAIL_KEEP_ERROR: &str = "error";
 pub const SAMPLING_TAIL_KEEP_FULL_SCAN: &str = "full_scan";
 
 /// Wire protocol spoken to the client, per OTel semantic conventions.
-/// Turbolay speaks Bolt, so APM database views key off `neo4j`. This describes
+/// HydraDB speaks Bolt, so APM database views key off `neo4j`. This describes
 /// the protocol, not a claim about the implementation.
 pub const DB_SYSTEM_NAME: &str = "db.system.name";
 
@@ -248,7 +248,7 @@ pub const DB_SYSTEM_NEO4J: &str = "neo4j";
 /// convention, and semconv separates a read distribution from a write
 /// distribution with this attribute — not with two metric names. Without it the
 /// two are forced into `db.client.operation.duration.read` and `….write`, which
-/// is a Turbolay name wearing a semconv prefix and matches no vendor's database
+/// is a HydraDB name wearing a semconv prefix and matches no vendor's database
 /// view; with it there is one instrument and two series, which is what every
 /// consumer of that metric already expects.
 ///
@@ -431,9 +431,9 @@ pub const SPAN_ONLY_KEYS: &[&str] = &[
     SAMPLING_TAIL_KEEP,
 ];
 
-/// Every `turbolay.*` key defined above, for tests and for the redaction
+/// Every `hydradb.*` key defined above, for tests and for the redaction
 /// layer's allowlist cross-check.
-pub const ALL_TURBOLAY_KEYS: &[&str] = &[
+pub const ALL_HYDRADB_KEYS: &[&str] = &[
     SCOPE,
     CELL_ID,
     NODE_ID,
@@ -468,15 +468,15 @@ pub const ALL_TURBOLAY_KEYS: &[&str] = &[
     SAMPLING_TAIL_KEEP,
 ];
 
-/// Every key this crate defines, `turbolay.`-namespaced or not.
+/// Every key this crate defines, `hydradb.`-namespaced or not.
 ///
-/// [`ALL_TURBOLAY_KEYS`] stays the namespaced subset, because that is what the
+/// [`ALL_HYDRADB_KEYS`] stays the namespaced subset, because that is what the
 /// namespace test and the redaction cross-check are about. This is the superset
 /// the classification tests iterate, and the distinction is not pedantry: the
-/// four keys that are *not* `turbolay.`-namespaced are [`ERROR_CLASS`],
+/// four keys that are *not* `hydradb.`-namespaced are [`ERROR_CLASS`],
 /// [`DB_SYSTEM_NAME`], [`DB_OPERATION_NAME`] and [`LE`] — one of which is first
 /// on the safe-label list and all four of which a test over
-/// `ALL_TURBOLAY_KEYS` would classify vacuously, passing while checking
+/// `ALL_HYDRADB_KEYS` would classify vacuously, passing while checking
 /// nothing.
 pub const ALL_REGISTRY_KEYS: &[&str] = &[
     SCOPE,
@@ -522,22 +522,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_turbolay_key_is_namespaced() {
-        for key in ALL_TURBOLAY_KEYS {
+    fn every_hydradb_key_is_namespaced() {
+        for key in ALL_HYDRADB_KEYS {
             assert!(
-                key.starts_with("turbolay."),
-                "{key} is missing the turbolay. namespace"
+                key.starts_with("hydradb."),
+                "{key} is missing the hydradb. namespace"
             );
         }
     }
 
     #[test]
     fn keys_are_unique() {
-        let mut sorted = ALL_TURBOLAY_KEYS.to_vec();
+        let mut sorted = ALL_HYDRADB_KEYS.to_vec();
         sorted.sort_unstable();
         let before = sorted.len();
         sorted.dedup();
-        assert_eq!(before, sorted.len(), "duplicate key in ALL_TURBOLAY_KEYS");
+        assert_eq!(before, sorted.len(), "duplicate key in ALL_HYDRADB_KEYS");
     }
 
     /// A key that survives redaction is a key that reaches the exporter, so the
@@ -554,20 +554,20 @@ mod tests {
     }
 
     /// The superset must actually be one. Cheap, and it is what keeps a key
-    /// added to `ALL_TURBOLAY_KEYS` alone from skipping the classification
+    /// added to `ALL_HYDRADB_KEYS` alone from skipping the classification
     /// below.
     #[test]
-    fn the_registry_contains_every_turbolay_key() {
-        for key in ALL_TURBOLAY_KEYS {
+    fn the_registry_contains_every_hydradb_key() {
+        for key in ALL_HYDRADB_KEYS {
             assert!(
                 ALL_REGISTRY_KEYS.contains(key),
-                "{key} is in ALL_TURBOLAY_KEYS but not in ALL_REGISTRY_KEYS"
+                "{key} is in ALL_HYDRADB_KEYS but not in ALL_REGISTRY_KEYS"
             );
         }
         assert_eq!(
             ALL_REGISTRY_KEYS.len(),
-            ALL_TURBOLAY_KEYS.len() + 4,
-            "ALL_REGISTRY_KEYS is ALL_TURBOLAY_KEYS plus error.class, \
+            ALL_HYDRADB_KEYS.len() + 4,
+            "ALL_REGISTRY_KEYS is ALL_HYDRADB_KEYS plus error.class, \
              db.system.name, db.operation.name and le — no more and no less"
         );
     }
@@ -626,7 +626,7 @@ mod tests {
     /// The three keys the classification is most likely to get wrong, asserted
     /// by name rather than by rule. `scope` and `correlation_id` are the two
     /// unbounded keys the type exists to keep off metrics; `error.class` is the
-    /// non-namespaced one an `ALL_TURBOLAY_KEYS`-shaped test cannot see.
+    /// non-namespaced one an `ALL_HYDRADB_KEYS`-shaped test cannot see.
     #[test]
     fn the_load_bearing_classifications_are_the_expected_ones() {
         assert!(SPAN_ONLY_KEYS.contains(&SCOPE));
@@ -635,7 +635,7 @@ mod tests {
         assert!(METRIC_LABELS.iter().any(|l| l.key() == ERROR_CLASS));
         // Not a judgement call so much as a load-bearing one: this key is what
         // lets the read and write distributions share the stable semconv
-        // instrument name instead of inventing two Turbolay names under a
+        // instrument name instead of inventing two HydraDB names under a
         // semconv prefix. Span-only would have re-forced the split.
         assert!(METRIC_LABELS.iter().any(|l| l.key() == DB_OPERATION_NAME));
         assert!(!SPAN_ONLY_KEYS.contains(&DB_OPERATION_NAME));

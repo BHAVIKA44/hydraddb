@@ -85,8 +85,8 @@ use crate::semconv::{MetricLabel, LE};
 /// [`HistogramUnit::Seconds`] exists for exactly one instrument.
 /// `db.client.operation.duration` is a stable OTel semantic convention and
 /// semconv fixes it in seconds, so a series claiming that name must be in
-/// seconds or it is worse than a series with a Turbolay name. Everything else
-/// keeps microseconds under a `turbolay.*` name. A bound table in seconds must
+/// seconds or it is worse than a series with a HydraDB name. Everything else
+/// keeps microseconds under a `hydradb.*` name. A bound table in seconds must
 /// never leak back towards the kernel.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HistogramUnit {
@@ -136,7 +136,7 @@ pub const LE_INFINITY: &str = "+Inf";
 #[derive(Clone, Copy, Debug)]
 pub struct HistogramSpec {
     /// Metric name stem. `db.*` where a semantic convention genuinely exists,
-    /// `turbolay.*` otherwise.
+    /// `hydradb.*` otherwise.
     pub name: &'static str,
     /// One-line description, exported as the instrument description.
     pub description: &'static str,
@@ -227,7 +227,7 @@ impl CounterUnit {
 #[derive(Clone, Copy, Debug)]
 pub struct CounterSpec {
     /// Metric name. `db.*` where a semantic convention genuinely exists,
-    /// `turbolay.*` otherwise — and for counters it is always the latter, because
+    /// `hydradb.*` otherwise — and for counters it is always the latter, because
     /// the one stable database metric is a histogram.
     pub name: &'static str,
     /// One-line description, exported as the instrument description.
@@ -294,7 +294,7 @@ pub enum CounterError {
 /// # Labels
 ///
 /// `&[(MetricLabel, &str)]`, the same as [`ObservableHistogram::record_snapshot`],
-/// which is what makes "no `turbolay.scope` on a metric" a type error rather than
+/// which is what makes "no `hydradb.scope` on a metric" a type error rather than
 /// a review comment — [`MetricLabel`]'s constructor is private to
 /// [`crate::semconv`].
 #[derive(Debug)]
@@ -712,7 +712,7 @@ mod tests {
 
     fn spec(unit: HistogramUnit) -> HistogramSpec {
         HistogramSpec {
-            name: "turbolay.test.duration",
+            name: "hydradb.test.duration",
             description: "test",
             unit,
         }
@@ -722,7 +722,7 @@ mod tests {
     /// is a no-op — which is exactly what these tests want, since they assert
     /// on the observation vectors rather than on what a collector received.
     fn histogram(unit: HistogramUnit) -> ObservableHistogram {
-        let meter = opentelemetry::global::meter("turbolay-telemetry-tests");
+        let meter = opentelemetry::global::meter("hydradb-telemetry-tests");
         ObservableHistogram::register(&meter, spec(unit), BOUNDS).expect("bounds are ascending")
     }
 
@@ -823,7 +823,7 @@ mod tests {
         assert_eq!(
             error,
             HistogramError::BucketCount {
-                name: "turbolay.test.duration",
+                name: "hydradb.test.duration",
                 expected: 4,
                 found: 3,
             }
@@ -833,7 +833,7 @@ mod tests {
 
     #[test]
     fn bounds_must_be_non_empty_and_ascending() {
-        let meter = opentelemetry::global::meter("turbolay-telemetry-tests");
+        let meter = opentelemetry::global::meter("hydradb-telemetry-tests");
         for bad in [&[][..], &[100, 100][..], &[1_000, 100][..]] {
             assert!(matches!(
                 ObservableHistogram::register(&meter, spec(HistogramUnit::Microseconds), bad),
@@ -920,11 +920,11 @@ mod tests {
     }
 
     fn counter(unit: CounterUnit) -> ObservableCounter {
-        let meter = opentelemetry::global::meter("turbolay-telemetry-tests");
+        let meter = opentelemetry::global::meter("hydradb-telemetry-tests");
         ObservableCounter::register(
             &meter,
             CounterSpec {
-                name: "turbolay.test.events",
+                name: "hydradb.test.events",
                 description: "test",
                 unit,
             },
@@ -1025,7 +1025,7 @@ mod tests {
         assert_eq!(
             counter.record(&[(L_CELL_ID, "cell-1"), (L_CELL_ID, "cell-2")], 1),
             Err(CounterError::DuplicateLabel {
-                name: "turbolay.test.events",
+                name: "hydradb.test.events",
                 key: L_CELL_ID.key(),
             })
         );
@@ -1042,7 +1042,7 @@ mod tests {
         assert_eq!(
             counter.record(&[(crate::semconv::L_LE, "0.5")], 1),
             Err(CounterError::ReservedLabel {
-                name: "turbolay.test.events",
+                name: "hydradb.test.events",
             })
         );
         assert!(counter.observations().is_empty());

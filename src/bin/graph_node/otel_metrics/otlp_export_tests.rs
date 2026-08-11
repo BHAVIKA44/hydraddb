@@ -1,5 +1,5 @@
 //! What an OTLP collector receives from the counter instruments
-//! [`super::NodeCounters`] registers — through `turbolay_telemetry::init`, a real
+//! [`super::NodeCounters`] registers — through `hydradb_telemetry::init`, a real
 //! `PeriodicReader`, and a socket.
 //!
 //! # Why a socket, and why not a capture exporter
@@ -14,9 +14,9 @@
 //! What is left to prove is the join: that the instrument names
 //! [`super::OTEL_COUNTERS`] holds survive registration, that the values
 //! [`super::shard_counter_totals`] computes are what leaves the process, and that
-//! `turbolay.cell_id` is the only dimension on the way out. That claim is about a
+//! `hydradb.cell_id` is the only dimension on the way out. That claim is about a
 //! pipeline, so the test builds no `SdkMeterProvider` of its own: it goes through
-//! `turbolay_telemetry::init` and takes the meter from
+//! `hydradb_telemetry::init` and takes the meter from
 //! `TelemetryGuard::providers()`, which is the step production code was missing
 //! for two commits while every rendering test passed. A capture exporter would
 //! also need `opentelemetry_sdk` as a dev-dependency of the root package, on every
@@ -25,7 +25,7 @@
 //!
 //! # One test, and why it cannot be two
 //!
-//! `turbolay_telemetry::init` installs the process-global `tracing` subscriber, so
+//! `hydradb_telemetry::init` installs the process-global `tracing` subscriber, so
 //! a second call in the same test binary returns
 //! `TelemetryError::AlreadyInitialised`. One process, one `init`, one guard.
 //! Everything that does not need the socket is a plain test in
@@ -40,8 +40,8 @@ use slatedb_graph_kernel::{
     GraphCacheMetricsSnapshot, GraphId, GraphOperationalMetricsSnapshot, GraphScope,
     GraphShardRuntimeMetrics, NamespaceId, ScopedGraphShardRuntimeMetrics,
 };
-use turbolay_telemetry::semconv::L_CELL_ID;
-use turbolay_telemetry::{ServiceIdentity, TelemetryConfig};
+use hydradb_telemetry::semconv::L_CELL_ID;
+use hydradb_telemetry::{ServiceIdentity, TelemetryConfig};
 
 use super::{CounterSource, NodeCounters};
 
@@ -156,14 +156,14 @@ fn shards() -> Vec<ScopedGraphShardRuntimeMetrics> {
 
 /// **The end-to-end claim.** The shard counter instruments registered against the
 /// meter `TelemetryGuard::providers()` hands out leave the process as an OTLP
-/// `/v1/metrics` request, dimensioned by `turbolay.cell_id` and nothing else.
+/// `/v1/metrics` request, dimensioned by `hydradb.cell_id` and nothing else.
 ///
 /// Four things are checked, in two places, and the split is not arbitrary — each
 /// is checked where it is *observable*:
 ///
 /// - The **names** and the **label key** are checked on the wire, as bytes.
-///   Protobuf encodes strings literally, so `turbolay.shard.write.attempts` and
-///   `turbolay.cell_id` are substrings of the frame, and asserting on them needs no
+///   Protobuf encodes strings literally, so `hydradb.shard.write.attempts` and
+///   `hydradb.cell_id` are substrings of the frame, and asserting on them needs no
 ///   `prost` dependency in a test whose point is that the wire format is not the
 ///   thing under test. This is the assertion the SDK can quietly defeat: it
 ///   validates instrument names internally and *drops* what it rejects, so a name
@@ -172,7 +172,7 @@ fn shards() -> Vec<ScopedGraphShardRuntimeMetrics> {
 ///   are varints rather than text. `cell-a`'s 7 is the sum of two tenants' 3 and
 ///   4, which is the number that distinguishes a per-cell series from whichever
 ///   scope happened to be recorded last.
-/// - The **absence** of `turbolay.scope` is checked on the wire, because that is
+/// - The **absence** of `hydradb.scope` is checked on the wire, because that is
 ///   the only place it could appear.
 #[test]
 fn the_shard_counters_reach_an_otlp_collector_summed_by_cell() {
@@ -185,7 +185,7 @@ fn the_shard_counters_reach_an_otlp_collector_summed_by_cell() {
     config.metric_export_interval = Duration::from_millis(200);
     config.export_timeout = Duration::from_secs(5);
 
-    let guard = turbolay_telemetry::init(config).expect("telemetry installs");
+    let guard = hydradb_telemetry::init(config).expect("telemetry installs");
     let counters = NodeCounters::register(
         guard
             .providers()
@@ -237,7 +237,7 @@ fn the_shard_counters_reach_an_otlp_collector_summed_by_cell() {
             .expect("sink lock")
             .iter()
             .find(|(path, body)| {
-                path.ends_with("/v1/metrics") && contains(body, "turbolay.shard.write.attempts")
+                path.ends_with("/v1/metrics") && contains(body, "hydradb.shard.write.attempts")
             })
             .map(|(_, body)| body.clone());
         if let Some(body) = found {
@@ -261,7 +261,7 @@ fn the_shard_counters_reach_an_otlp_collector_summed_by_cell() {
     // A second family, and a microsecond one: one name arriving proves the meter
     // is reachable, two prove the registration loop is.
     assert!(
-        contains(&body, "turbolay.shard.gc.duration.sum"),
+        contains(&body, "hydradb.shard.gc.duration.sum"),
         "the microsecond counters did not reach the exporter"
     );
     assert!(
@@ -282,7 +282,7 @@ fn the_shard_counters_reach_an_otlp_collector_summed_by_cell() {
     // `/metrics` carries it on three families, and OTLP carries it nowhere. Both
     // tenant names are in the fixture, so this is not vacuous.
     assert!(
-        !contains(&body, "turbolay.scope"),
+        !contains(&body, "hydradb.scope"),
         "the tenant root reached a metric label"
     );
     assert!(

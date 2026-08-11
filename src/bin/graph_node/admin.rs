@@ -48,7 +48,7 @@ pub struct PrometheusHistogram {
 ///
 /// `graph_*` throughout, because that is what every existing series on this
 /// endpoint is called and a scraper's relabelling rules key off the prefix. The
-/// OTel vocabulary (`db.*`/`turbolay.*`) is a separate decision living in a
+/// OTel vocabulary (`db.*`/`hydradb.*`) is a separate decision living in a
 /// separate table; see `crate::otel_metrics`.
 ///
 /// The unit suffix is part of the name on purpose. Prometheus convention wants
@@ -1291,13 +1291,13 @@ mod tests {
         document
     }
 
-    /// Writes `/metrics` to `$TURBOLAY_METRICS_CAPTURE` when it is set, so the
+    /// Writes `/metrics` to `$HYDRADB_METRICS_CAPTURE` when it is set, so the
     /// endpoint can be diffed across a change to it. Asserts nothing on its
     /// own: the assertion is the diff.
     #[tokio::test]
     async fn capture_metrics_document() {
         let document = rendered_metrics().await;
-        if let Ok(path) = std::env::var("TURBOLAY_METRICS_CAPTURE") {
+        if let Ok(path) = std::env::var("HYDRADB_METRICS_CAPTURE") {
             std::fs::write(path, &document).expect("capture is writable");
         }
         assert!(document.contains("graph_runtime_ready 1\n"));

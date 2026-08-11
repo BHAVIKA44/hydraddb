@@ -52,7 +52,7 @@ use tracing_subscriber::Layer;
 
 use crate::config::{OtlpProtocol, TelemetryConfig};
 use crate::redact;
-use crate::sampling::TurbolaySampler;
+use crate::sampling::HydraDBSampler;
 use crate::TelemetryError;
 
 /// The providers, kept alive by [`crate::TelemetryGuard`].
@@ -78,8 +78,8 @@ impl Providers {
     /// A meter to register instruments against.
     ///
     /// `name` is the instrumentation scope, not the metric name: use one per
-    /// subsystem registering instruments (`"turbolay.shard"`,
-    /// `"turbolay.client"`), so a backend can attribute a series to the code
+    /// subsystem registering instruments (`"hydradb.shard"`,
+    /// `"hydradb.client"`), so a backend can attribute a series to the code
     /// that produced it.
     pub fn meter(&self, name: &'static str) -> Meter {
         self.meter.meter(name)
@@ -91,11 +91,11 @@ impl Providers {
         // shutdown is worth knowing about but is never worth a non-zero exit
         // code or a panic in a destructor.
         if let Err(error) = self.tracer.shutdown() {
-            eprintln!("turbolay-telemetry: tracer shutdown failed: {error}");
+            eprintln!("hydradb-telemetry: tracer shutdown failed: {error}");
         }
         if let Some(logger) = self.logger {
             if let Err(error) = logger.shutdown() {
-                eprintln!("turbolay-telemetry: logger shutdown failed: {error}");
+                eprintln!("hydradb-telemetry: logger shutdown failed: {error}");
             }
         }
         // The meter goes last for a reason: its shutdown runs one final
@@ -103,7 +103,7 @@ impl Providers {
         // of the process is still updating is better ordered after the pipelines
         // that only drain.
         if let Err(error) = self.meter.shutdown() {
-            eprintln!("turbolay-telemetry: meter shutdown failed: {error}");
+            eprintln!("hydradb-telemetry: meter shutdown failed: {error}");
         }
     }
 }
@@ -142,7 +142,7 @@ where
         // start is a worse outcome than one exporting over a different
         // transport than requested, and the warning says exactly what happened.
         eprintln!(
-            "turbolay-telemetry: OTEL_EXPORTER_OTLP_PROTOCOL=grpc requires the \
+            "hydradb-telemetry: OTEL_EXPORTER_OTLP_PROTOCOL=grpc requires the \
              grpc-tonic feature; falling back to http/protobuf"
         );
     }
@@ -165,7 +165,7 @@ where
 
     let tracer_provider = SdkTracerProvider::builder()
         .with_resource(resource.clone())
-        .with_sampler(TurbolaySampler::new(config.sample_ratio))
+        .with_sampler(HydraDBSampler::new(config.sample_ratio))
         // Redaction wraps the batch processor rather than replacing it, so the
         // last thing that touches a span before it is queued for the network is
         // the denylist.
@@ -213,7 +213,7 @@ where
         )
         .build();
 
-    let tracer = tracer_provider.tracer("turbolay");
+    let tracer = tracer_provider.tracer("hydradb");
     let trace_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
     let mut layers: OtlpLayers<S> = vec![Box::new(trace_layer)];
@@ -239,7 +239,7 @@ fn build_resource(config: &TelemetryConfig) -> Resource {
         KeyValue::new("service.instance.id", config.instance_id.clone()),
         // Redundant with `service.name`, and deliberately so: it keeps the
         // OTLP view and the stdout JSON view queryable the same way.
-        KeyValue::new("turbolay.binary", config.identity.binary()),
+        KeyValue::new("hydradb.binary", config.identity.binary()),
     ];
     if let Some(environment) = &config.deployment_environment {
         attributes.push(KeyValue::new(
@@ -390,10 +390,10 @@ mod tests {
         let resource = build_resource(&config);
         assert_eq!(
             resource.get(&opentelemetry::Key::from_static_str("service.name")),
-            Some("turbolay-graph-indexer".into())
+            Some("hydradb-graph-indexer".into())
         );
         assert_eq!(
-            resource.get(&opentelemetry::Key::from_static_str("turbolay.binary")),
+            resource.get(&opentelemetry::Key::from_static_str("hydradb.binary")),
             Some("graph-indexer".into())
         );
     }
@@ -420,7 +420,7 @@ mod tests {
         // The meter is reachable, which is the whole point of holding it: unlike
         // traces and logs, nothing reaches the metrics pipeline through the
         // subscriber.
-        let _meter = providers.meter("turbolay.test");
+        let _meter = providers.meter("hydradb.test");
         providers.shutdown();
     }
 
@@ -443,7 +443,7 @@ mod tests {
 
         let providers = providers.expect("an endpoint means providers");
         assert!(providers.logger.is_none(), "no log pipeline was built");
-        let _meter = providers.meter("turbolay.test");
+        let _meter = providers.meter("hydradb.test");
         providers.shutdown();
     }
 

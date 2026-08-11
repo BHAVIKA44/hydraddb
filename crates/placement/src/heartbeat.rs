@@ -189,7 +189,7 @@ pub struct Heartbeat {
 
     /// The build the node is running. The first question of any mixed-version
     /// incident.
-    pub turbolay_version: String,
+    pub hydradb_version: String,
 
     /// When the node's process started, by the node's own clock. A `started_at`
     /// that keeps moving is a crash loop, which otherwise looks identical to a
@@ -217,7 +217,7 @@ impl Heartbeat {
     /// the store's.
     pub fn new(
         node_id: impl Into<String>,
-        turbolay_version: impl Into<String>,
+        hydradb_version: impl Into<String>,
         started_at: DateTime<Utc>,
         published_at: DateTime<Utc>,
         cells: Vec<String>,
@@ -225,7 +225,7 @@ impl Heartbeat {
         Self {
             version: VERSION,
             node_id: node_id.into(),
-            turbolay_version: turbolay_version.into(),
+            hydradb_version: hydradb_version.into(),
             started_at,
             published_at,
             cells,
@@ -491,7 +491,7 @@ mod tests {
         "node_a",
         "A9",
         "n",
-        "turbolay.graph-node.0",
+        "hydradb.graph-node.0",
         "0",
         "-",
     ];
@@ -591,7 +591,7 @@ mod tests {
         let back: Heartbeat = serde_json::from_str(&json).expect("decodable");
         assert_eq!(back.version, VERSION);
         assert_eq!(back.node_id, NODE);
-        assert_eq!(back.turbolay_version, "0.1.0");
+        assert_eq!(back.hydradb_version, "0.1.0");
         assert_eq!(back.cells, vec!["cell-a".to_string(), "cell-b".to_string()]);
     }
 
@@ -603,7 +603,7 @@ mod tests {
         let json = r#"{
             "version": 1,
             "node_id": "graph-node-0",
-            "turbolay_version": "9.9.9",
+            "hydradb_version": "9.9.9",
             "started_at": "2026-07-25T14:00:00Z",
             "published_at": "2026-07-25T14:32:07Z",
             "cells": ["cell-a"],

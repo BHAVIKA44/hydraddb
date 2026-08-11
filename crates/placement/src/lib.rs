@@ -1,4 +1,4 @@
-//! Placement and liveness for Turbolay cell writers.
+//! Placement and liveness for HydraDB cell writers.
 //!
 //! `owner(scope, cell) = argmax over live nodes of H(scope ‖ cell ‖ node)`.
 //!

@@ -30,12 +30,12 @@
 //!
 //! §1.4 is what makes the asymmetry legitimate rather than an oversight — the
 //! two exports are allowed to differ in *dimensionality*, and they already do:
-//! `/metrics` carries `turbolay.scope` on three counter families and OTLP
+//! `/metrics` carries `hydradb.scope` on three counter families and OTLP
 //! carries it nowhere.
 //!
 //! # Names
 //!
-//! §1.9: `db.*` where a semantic convention genuinely exists, `turbolay.*`
+//! §1.9: `db.*` where a semantic convention genuinely exists, `hydradb.*`
 //! otherwise. Of the five histograms exactly one quantity has a semconv name —
 //! client query duration is `db.client.operation.duration`, stable, and fixed in
 //! **seconds** while the kernel measures in microseconds. The conversion is one
@@ -53,7 +53,7 @@
 //! §1.10 splits client latency into a read and a write distribution, and §1.9
 //! names both `db.client.operation.duration`. Semconv separates them with
 //! `db.operation.name` rather than with two metric names, and that key now
-//! exists as `turbolay_telemetry::semconv::L_DB_OPERATION_NAME`, so both rows
+//! exists as `hydradb_telemetry::semconv::L_DB_OPERATION_NAME`, so both rows
 //! carry the semconv name and are told apart by a label.
 //!
 //! It shipped for one commit as `db.client.operation.duration.read` / `….write`
@@ -74,12 +74,12 @@
 //! `db.namespace` is still deliberately absent, and that is not incidental to
 //! the above: the two attributes semconv marks required on this metric are
 //! `db.system.name` (present, one value) and `db.namespace` (absent, because
-//! its only value is the unbounded `turbolay.scope`).
+//! its only value is the unbounded `hydradb.scope`).
 //!
 //! # Wiring
 //!
 //! [`NodeHistograms::register`] and [`NodeCounters::register`] take a
-//! `turbolay_telemetry::otlp::Providers`, reached through
+//! `hydradb_telemetry::otlp::Providers`, reached through
 //! `TelemetryGuard::providers()`. That accessor is the only way in on purpose:
 //! `opentelemetry::global::meter` on a provider that was never installed
 //! globally returns a **no-op** meter that accepts every instrument, reports
@@ -117,7 +117,7 @@
 //! 0.32 has no `MetricProducer`, so a histogram computed in the kernel and read
 //! from a cached snapshot cannot reach OTLP as a histogram data point. It
 //! reaches it as a family of observable counters keyed by `le`, which is what a
-//! Prometheus histogram already is. `turbolay_telemetry::meter` owns that
+//! Prometheus histogram already is. `hydradb_telemetry::meter` owns that
 //! rendering, and owning it in one place is what stops the two exports
 //! disagreeing about where a bucket ends. See that module for the full
 //! argument.
@@ -152,7 +152,7 @@ mod otlp_export_tests;
 /// This is a boundary conversion, and it exists because
 /// `db.client.operation.duration` is a stable semantic convention fixed in
 /// seconds — a series claiming that name in microseconds is worse than a series
-/// with a Turbolay name.
+/// with a HydraDB name.
 ///
 /// It is deliberately shared by both exports. The names may diverge; the *unit*
 /// must not, or `histogram_quantile` over the Prometheus family and the same
@@ -168,7 +168,7 @@ pub enum ExportUnit {
 impl ExportUnit {
     /// Render one finite bucket bound as an `le` label value.
     ///
-    /// Character-for-character what `turbolay_telemetry::meter::HistogramUnit`
+    /// Character-for-character what `hydradb_telemetry::meter::HistogramUnit`
     /// does, and it has to be: two renderings of the same bound that differ by
     /// a trailing zero are two series to every backend downstream. `{}` on
     /// `f64` is the shortest representation that round-trips, so 100 µs renders
@@ -190,8 +190,8 @@ impl ExportUnit {
 
     /// The same choice, spelled the way the meter spells it.
     #[cfg(feature = "otlp")]
-    fn meter_unit(self) -> turbolay_telemetry::meter::HistogramUnit {
-        use turbolay_telemetry::meter::HistogramUnit;
+    fn meter_unit(self) -> hydradb_telemetry::meter::HistogramUnit {
+        use hydradb_telemetry::meter::HistogramUnit;
         match self {
             Self::Microseconds => HistogramUnit::Microseconds,
             Self::Seconds => HistogramUnit::Seconds,
@@ -273,7 +273,7 @@ pub struct OtelHistogram {
     /// The `db.operation.name` value this row is recorded under, if the metric
     /// is one semconv splits by operation rather than by name.
     ///
-    /// `None` for every `turbolay.*` metric: those are named for what they
+    /// `None` for every `hydradb.*` metric: those are named for what they
     /// measure, so a second dimension would be a distinction the name already
     /// makes.
     pub operation: Option<&'static str>,
@@ -302,7 +302,7 @@ pub const OTEL_HISTOGRAMS: &[OtelHistogram] = &[
         name: "db.client.operation.duration",
         description: "End-to-end client operation execution",
         unit: ExportUnit::Seconds,
-        operation: Some(turbolay_telemetry::semconv::DB_OPERATION_READ),
+        operation: Some(hydradb_telemetry::semconv::DB_OPERATION_READ),
         source: FieldSource::GraphNode,
     },
     OtelHistogram {
@@ -310,12 +310,12 @@ pub const OTEL_HISTOGRAMS: &[OtelHistogram] = &[
         name: "db.client.operation.duration",
         description: "End-to-end client operation execution",
         unit: ExportUnit::Seconds,
-        operation: Some(turbolay_telemetry::semconv::DB_OPERATION_WRITE),
+        operation: Some(hydradb_telemetry::semconv::DB_OPERATION_WRITE),
         source: FieldSource::GraphNode,
     },
     OtelHistogram {
         field: "query_rows_latency",
-        name: "turbolay.query.rows.duration",
+        name: "hydradb.query.rows.duration",
         description: "Shard row-query execution",
         unit: ExportUnit::Microseconds,
         operation: None,
@@ -323,7 +323,7 @@ pub const OTEL_HISTOGRAMS: &[OtelHistogram] = &[
     },
     OtelHistogram {
         field: "rpc_latency",
-        name: "turbolay.query.transport.rpc.duration",
+        name: "hydradb.query.transport.rpc.duration",
         description: "Query-transport client RPC round-trip",
         unit: ExportUnit::Microseconds,
         operation: None,
@@ -331,7 +331,7 @@ pub const OTEL_HISTOGRAMS: &[OtelHistogram] = &[
     },
     OtelHistogram {
         field: "serve_latency",
-        name: "turbolay.query.transport.serve.duration",
+        name: "hydradb.query.transport.serve.duration",
         description: "Query-transport server executor time",
         unit: ExportUnit::Microseconds,
         operation: None,
@@ -479,7 +479,7 @@ pub const TRANSPORT_ONLY_COUNTERS: &[&str] = &[
 /// The dimensionality here is deliberately **not** the Prometheus one. §1.4 of
 /// the metrics plan says the two exports have different cost functions and
 /// should not be forced to the same shape: `/metrics` is scraped by a Prometheus
-/// already sized for the tenant count it sees and carries `turbolay.scope` on
+/// already sized for the tenant count it sees and carries `hydradb.scope` on
 /// three counter families for historical reasons, while OTLP ships to a vendor
 /// billing per series. No variant here carries a scope, and there is no way to
 /// spell one.
@@ -487,7 +487,7 @@ pub const TRANSPORT_ONLY_COUNTERS: &[&str] = &[
 pub enum OtelCounterExport {
     /// One process-global sum, no attributes beyond the resource.
     Global(&'static str),
-    /// One sum per `turbolay.cell_id`, summed over every scope open on the node.
+    /// One sum per `hydradb.cell_id`, summed over every scope open on the node.
     PerCell(&'static str),
     /// Not an instrument of its own. The counter is a restatement of the `.sum`
     /// of the named histogram instruments, which are already exported, so a
@@ -543,8 +543,8 @@ impl CounterQuantity {
     /// it disagree by a factor of a million with the `_microseconds` series
     /// `/metrics` renders from the very same field, undetectably.
     #[cfg(feature = "otlp")]
-    fn meter_unit(self) -> turbolay_telemetry::meter::CounterUnit {
-        use turbolay_telemetry::meter::CounterUnit;
+    fn meter_unit(self) -> hydradb_telemetry::meter::CounterUnit {
+        use hydradb_telemetry::meter::CounterUnit;
         match self {
             Self::Events => CounterUnit::Count,
             Self::Microseconds => CounterUnit::Microseconds,
@@ -561,7 +561,7 @@ impl CounterQuantity {
 /// metric name in longer words, whereas the identifier is the one thing the name
 /// does *not* carry, and it is the key `/metrics`, the kernel's enumeration and
 /// both name tables are joined on. An operator who finds
-/// `turbolay.shard.compute.queue.duration.sum` on a dashboard and wants the code
+/// `hydradb.shard.compute.queue.duration.sum` on a dashboard and wants the code
 /// gets `graph_compute_queue_us` for free.
 #[derive(Clone, Copy, Debug)]
 pub struct OtelCounter {
@@ -581,7 +581,7 @@ pub struct OtelCounter {
 /// the kernel today cannot reach one export and quietly miss the other on the day
 /// the remaining instruments land.
 ///
-/// `turbolay.*` throughout. §1.9 says `db.*` where a semantic convention
+/// `hydradb.*` throughout. §1.9 says `db.*` where a semantic convention
 /// genuinely exists, and there is no semconv counter for any of these -- the one
 /// stable database metric, `db.client.operation.duration`, is a histogram and is
 /// already claimed by [`OTEL_HISTOGRAMS`].
@@ -590,52 +590,52 @@ pub const OTEL_COUNTERS: &[OtelCounter] = &[
     OtelCounter {
         source: CounterSource::Client,
         field: "queries_started",
-        export: OtelCounterExport::Global("turbolay.client.queries.started"),
+        export: OtelCounterExport::Global("hydradb.client.queries.started"),
     },
     OtelCounter {
         source: CounterSource::Client,
         field: "queries_completed",
-        export: OtelCounterExport::Global("turbolay.client.queries.completed"),
+        export: OtelCounterExport::Global("hydradb.client.queries.completed"),
     },
     OtelCounter {
         source: CounterSource::Client,
         field: "queries_failed",
-        export: OtelCounterExport::Global("turbolay.client.queries.failed"),
+        export: OtelCounterExport::Global("hydradb.client.queries.failed"),
     },
     OtelCounter {
         source: CounterSource::Client,
         field: "rows_returned",
-        export: OtelCounterExport::Global("turbolay.client.rows.returned"),
+        export: OtelCounterExport::Global("hydradb.client.rows.returned"),
     },
     OtelCounter {
         source: CounterSource::Client,
         field: "auth_failures",
-        export: OtelCounterExport::Global("turbolay.client.auth.failures"),
+        export: OtelCounterExport::Global("hydradb.client.auth.failures"),
     },
     OtelCounter {
         source: CounterSource::Client,
         field: "scope_denials",
-        export: OtelCounterExport::Global("turbolay.client.scope.denials"),
+        export: OtelCounterExport::Global("hydradb.client.scope.denials"),
     },
     OtelCounter {
         source: CounterSource::Client,
         field: "cancellations",
-        export: OtelCounterExport::Global("turbolay.client.queries.cancelled"),
+        export: OtelCounterExport::Global("hydradb.client.queries.cancelled"),
     },
     OtelCounter {
         source: CounterSource::Client,
         field: "backpressure_waits",
-        export: OtelCounterExport::Global("turbolay.client.backpressure.waits"),
+        export: OtelCounterExport::Global("hydradb.client.backpressure.waits"),
     },
     OtelCounter {
         source: CounterSource::Client,
         field: "prepare_requests",
-        export: OtelCounterExport::Global("turbolay.client.prepare.requests"),
+        export: OtelCounterExport::Global("hydradb.client.prepare.requests"),
     },
     OtelCounter {
         source: CounterSource::Client,
         field: "prepare_duration_us",
-        export: OtelCounterExport::Global("turbolay.client.prepare.duration.sum"),
+        export: OtelCounterExport::Global("hydradb.client.prepare.duration.sum"),
     },
     // Derived: the kernel builds it from `read_latency.sum_us +
     // write_latency.sum_us`, and both instruments already publish a `.sum`.
@@ -648,276 +648,276 @@ pub const OTEL_COUNTERS: &[OtelCounter] = &[
     OtelCounter {
         source: CounterSource::Shard,
         field: "write_attempts",
-        export: OtelCounterExport::PerCell("turbolay.shard.write.attempts"),
+        export: OtelCounterExport::PerCell("hydradb.shard.write.attempts"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "write_commits",
-        export: OtelCounterExport::PerCell("turbolay.shard.write.commits"),
+        export: OtelCounterExport::PerCell("hydradb.shard.write.commits"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "write_retries",
-        export: OtelCounterExport::PerCell("turbolay.shard.write.retries"),
+        export: OtelCounterExport::PerCell("hydradb.shard.write.retries"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "bulk_import_batches_profiled",
-        export: OtelCounterExport::PerCell("turbolay.shard.bulk_import.batches_profiled"),
+        export: OtelCounterExport::PerCell("hydradb.shard.bulk_import.batches_profiled"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "bulk_import_preflight_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.bulk_import.preflight.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.bulk_import.preflight.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "bulk_import_batch_build_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.bulk_import.batch_build.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.bulk_import.batch_build.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "bulk_import_counter_read_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.bulk_import.counter_read.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.bulk_import.counter_read.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "bulk_import_commit_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.bulk_import.commit.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.bulk_import.commit.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "artifact_builds_started",
-        export: OtelCounterExport::PerCell("turbolay.shard.artifact.builds.started"),
+        export: OtelCounterExport::PerCell("hydradb.shard.artifact.builds.started"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "artifact_builds_completed",
-        export: OtelCounterExport::PerCell("turbolay.shard.artifact.builds.completed"),
+        export: OtelCounterExport::PerCell("hydradb.shard.artifact.builds.completed"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "artifact_build_duration_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.artifact.build.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.artifact.build.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "artifact_publish_batches",
-        export: OtelCounterExport::PerCell("turbolay.shard.artifact.publish.batches"),
+        export: OtelCounterExport::PerCell("hydradb.shard.artifact.publish.batches"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "artifact_records_published",
-        export: OtelCounterExport::PerCell("turbolay.shard.artifact.records.published"),
+        export: OtelCounterExport::PerCell("hydradb.shard.artifact.records.published"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "artifact_publish_duration_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.artifact.publish.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.artifact.publish.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "gc_jobs_started",
-        export: OtelCounterExport::PerCell("turbolay.shard.gc.jobs.started"),
+        export: OtelCounterExport::PerCell("hydradb.shard.gc.jobs.started"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "gc_jobs_completed",
-        export: OtelCounterExport::PerCell("turbolay.shard.gc.jobs.completed"),
+        export: OtelCounterExport::PerCell("hydradb.shard.gc.jobs.completed"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "gc_keys_deleted",
-        export: OtelCounterExport::PerCell("turbolay.shard.gc.keys.deleted"),
+        export: OtelCounterExport::PerCell("hydradb.shard.gc.keys.deleted"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "gc_duration_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.gc.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.gc.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "verifier_runs",
-        export: OtelCounterExport::PerCell("turbolay.shard.verifier.runs"),
+        export: OtelCounterExport::PerCell("hydradb.shard.verifier.runs"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "verifier_failures",
-        export: OtelCounterExport::PerCell("turbolay.shard.verifier.failures"),
+        export: OtelCounterExport::PerCell("hydradb.shard.verifier.failures"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "verifier_duration_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.verifier.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.verifier.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_rows_started",
-        export: OtelCounterExport::PerCell("turbolay.shard.query.rows.started"),
+        export: OtelCounterExport::PerCell("hydradb.shard.query.rows.started"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_rows_completed",
-        export: OtelCounterExport::PerCell("turbolay.shard.query.rows.completed"),
+        export: OtelCounterExport::PerCell("hydradb.shard.query.rows.completed"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_rows_failed",
-        export: OtelCounterExport::PerCell("turbolay.shard.query.rows.failed"),
+        export: OtelCounterExport::PerCell("hydradb.shard.query.rows.failed"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_rows_returned",
-        export: OtelCounterExport::PerCell("turbolay.shard.query.rows.returned"),
+        export: OtelCounterExport::PerCell("hydradb.shard.query.rows.returned"),
     },
     // Derived: the kernel sets it from `query_rows_latency.sum_us`.
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_rows_duration_us",
-        export: OtelCounterExport::Derived(&["turbolay.query.rows.duration"]),
+        export: OtelCounterExport::Derived(&["hydradb.query.rows.duration"]),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_artifact_lookup_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.query.artifact_lookup.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.query.artifact_lookup.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_graphblas_cache_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.query.graphblas_cache.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.query.graphblas_cache.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_graphblas_artifact_snapshots",
-        export: OtelCounterExport::PerCell("turbolay.shard.query.graphblas.artifact_snapshots"),
+        export: OtelCounterExport::PerCell("hydradb.shard.query.graphblas.artifact_snapshots"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_graphblas_rebuilt_snapshots",
-        export: OtelCounterExport::PerCell("turbolay.shard.query.graphblas.rebuilt_snapshots"),
+        export: OtelCounterExport::PerCell("hydradb.shard.query.graphblas.rebuilt_snapshots"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_rust_sparse_fallbacks",
-        export: OtelCounterExport::PerCell("turbolay.shard.query.rust_sparse_fallbacks"),
+        export: OtelCounterExport::PerCell("hydradb.shard.query.rust_sparse_fallbacks"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "graph_compute_tasks",
-        export: OtelCounterExport::PerCell("turbolay.shard.compute.tasks"),
+        export: OtelCounterExport::PerCell("hydradb.shard.compute.tasks"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "graph_compute_queue_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.compute.queue.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.compute.queue.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "graph_compute_duration_us",
-        export: OtelCounterExport::PerCell("turbolay.shard.compute.duration.sum"),
+        export: OtelCounterExport::PerCell("hydradb.shard.compute.duration.sum"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "backpressure_waits",
-        export: OtelCounterExport::PerCell("turbolay.shard.backpressure.waits"),
+        export: OtelCounterExport::PerCell("hydradb.shard.backpressure.waits"),
     },
     // `GraphCacheMetricsSnapshot`, in declaration order.
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "matrix_artifact_hits",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.matrix_artifact.hits"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.matrix_artifact.hits"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "matrix_artifact_misses",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.matrix_artifact.misses"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.matrix_artifact.misses"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "matrix_adjacency_hits",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.matrix_adjacency.hits"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.matrix_adjacency.hits"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "matrix_adjacency_misses",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.matrix_adjacency.misses"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.matrix_adjacency.misses"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "graphblas_hits",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.graphblas.hits"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.graphblas.hits"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "graphblas_misses",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.graphblas.misses"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.graphblas.misses"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "parsed_row_query_hits",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.parsed_row_query.hits"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.parsed_row_query.hits"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "parsed_row_query_misses",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.parsed_row_query.misses"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.parsed_row_query.misses"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "relationship_rows_hits",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.relationship_rows.hits"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.relationship_rows.hits"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "relationship_rows_misses",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.relationship_rows.misses"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.relationship_rows.misses"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "relationship_property_rows_hits",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.relationship_property_rows.hits"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.relationship_property_rows.hits"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "relationship_property_rows_misses",
         export: OtelCounterExport::PerCell(
-            "turbolay.shard.cache.relationship_property_rows.misses",
+            "hydradb.shard.cache.relationship_property_rows.misses",
         ),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "insertions",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.insertions"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.insertions"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "evictions",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.evictions"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.evictions"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "pinned_insertions",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.pinned_insertions"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.pinned_insertions"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "tenant_quota_rejections",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.tenant_quota_rejections"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.tenant_quota_rejections"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "hydration_started",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.hydration.started"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.hydration.started"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "hydration_waited",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.hydration.waited"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.hydration.waited"),
     },
     OtelCounter {
         source: CounterSource::ShardCache,
         field: "hydration_completed",
-        export: OtelCounterExport::PerCell("turbolay.shard.cache.hydration.completed"),
+        export: OtelCounterExport::PerCell("hydradb.shard.cache.hydration.completed"),
     },
 ];
 
@@ -927,7 +927,7 @@ pub const OTEL_COUNTERS: &[OtelCounter] = &[
 /// do not, and folding a `by_class` flag into [`OtelCounter`] would put a
 /// boolean on sixty-five rows to distinguish two.
 ///
-/// The name is *not* the scalar's. `turbolay.client.queries.failed` with an
+/// The name is *not* the scalar's. `hydradb.client.queries.failed` with an
 /// `error.class` attribute would be the tidier modelling, but the scalar is also
 /// exported and the two would then be one instrument reporting a total and a
 /// breakdown under the same name -- the kind of double count a dashboard sums
@@ -936,12 +936,12 @@ pub const OTEL_CLASS_COUNTERS: &[OtelCounter] = &[
     OtelCounter {
         source: CounterSource::Client,
         field: "queries_failed_by_class",
-        export: OtelCounterExport::Global("turbolay.client.queries.failed.by_class"),
+        export: OtelCounterExport::Global("hydradb.client.queries.failed.by_class"),
     },
     OtelCounter {
         source: CounterSource::Shard,
         field: "query_rows_failed_by_class",
-        export: OtelCounterExport::PerCell("turbolay.shard.query.rows.failed.by_class"),
+        export: OtelCounterExport::PerCell("hydradb.shard.query.rows.failed.by_class"),
     },
 ];
 
@@ -1005,7 +1005,7 @@ pub fn otel_counter_instruments() -> Vec<&'static OtelCounter> {
 
 /// Every shard's operational counters, summed by `cell_id`.
 ///
-/// [`OtelCounterExport::PerCell`] reads "one sum per `turbolay.cell_id`, summed
+/// [`OtelCounterExport::PerCell`] reads "one sum per `hydradb.cell_id`, summed
 /// over every scope open on the node", and this is where the summing happens.
 /// Publishing per scope instead would not duplicate and would not warn: the series
 /// identity is the label set, so the last scope recorded in an interval would
@@ -1047,7 +1047,7 @@ pub fn shard_counter_totals(
 
 /// The instrumentation scope every instrument registered here belongs to.
 #[cfg(feature = "otlp")]
-const METER_NAME: &str = "turbolay.graph_node";
+const METER_NAME: &str = "hydradb.graph_node";
 
 /// Every registered histogram family, keyed by the kernel's field identifier.
 ///
@@ -1066,7 +1066,7 @@ pub struct NodeHistograms {
     registered: std::collections::HashMap<
         &'static str,
         (
-            std::sync::Arc<turbolay_telemetry::meter::ObservableHistogram>,
+            std::sync::Arc<hydradb_telemetry::meter::ObservableHistogram>,
             Option<&'static str>,
         ),
     >,
@@ -1086,9 +1086,9 @@ impl NodeHistograms {
     /// restated here, so the Prometheus rendering in [`crate::admin`] and this
     /// one cannot disagree about where a bucket ends.
     pub fn register(
-        providers: &turbolay_telemetry::otlp::Providers,
-    ) -> Result<Self, turbolay_telemetry::meter::HistogramError> {
-        use turbolay_telemetry::meter::{HistogramSpec, ObservableHistogram};
+        providers: &hydradb_telemetry::otlp::Providers,
+    ) -> Result<Self, hydradb_telemetry::meter::HistogramError> {
+        use hydradb_telemetry::meter::{HistogramSpec, ObservableHistogram};
 
         let meter = providers.meter(METER_NAME);
         let mut registered = std::collections::HashMap::with_capacity(OTEL_HISTOGRAMS.len());
@@ -1126,9 +1126,9 @@ impl NodeHistograms {
     fn record(
         &self,
         field: &'static str,
-        labels: &[(turbolay_telemetry::semconv::MetricLabel, &str)],
+        labels: &[(hydradb_telemetry::semconv::MetricLabel, &str)],
         snapshot: &DurationHistogramSnapshot,
-    ) -> Result<(), turbolay_telemetry::meter::HistogramError> {
+    ) -> Result<(), hydradb_telemetry::meter::HistogramError> {
         let Some((histogram, operation)) = self.registered.get(field) else {
             debug_assert!(false, "{field} is enumerated but not in OTEL_HISTOGRAMS");
             return Ok(());
@@ -1139,7 +1139,7 @@ impl NodeHistograms {
         // forgetting it merges two populations without a word.
         let mut labels = labels.to_vec();
         if let Some(operation) = operation {
-            labels.push((turbolay_telemetry::semconv::L_DB_OPERATION_NAME, *operation));
+            labels.push((hydradb_telemetry::semconv::L_DB_OPERATION_NAME, *operation));
         }
         histogram.record_snapshot(&labels, &snapshot.bucket_counts, snapshot.sum_us)
     }
@@ -1159,8 +1159,8 @@ impl NodeHistograms {
     pub fn record_client(
         &self,
         snapshot: &slatedb_graph_kernel::ClientQueryMetricsSnapshot,
-    ) -> Result<(), turbolay_telemetry::meter::HistogramError> {
-        use turbolay_telemetry::semconv::{DB_SYSTEM_NEO4J, L_DB_SYSTEM_NAME};
+    ) -> Result<(), hydradb_telemetry::meter::HistogramError> {
+        use hydradb_telemetry::semconv::{DB_SYSTEM_NEO4J, L_DB_SYSTEM_NAME};
 
         for (field, histogram) in snapshot.histogram_fields() {
             self.record(field, &[(L_DB_SYSTEM_NAME, DB_SYSTEM_NEO4J)], histogram)?;
@@ -1178,8 +1178,8 @@ impl NodeHistograms {
     pub fn record_shard(
         &self,
         metrics: &slatedb_graph_kernel::ScopedGraphShardRuntimeMetrics,
-    ) -> Result<(), turbolay_telemetry::meter::HistogramError> {
-        use turbolay_telemetry::semconv::L_CELL_ID;
+    ) -> Result<(), hydradb_telemetry::meter::HistogramError> {
+        use hydradb_telemetry::semconv::L_CELL_ID;
 
         for (field, histogram) in metrics.shard.operational.histogram_fields() {
             self.record(
@@ -1205,7 +1205,7 @@ impl NodeHistograms {
     pub fn record_transport(
         &self,
         snapshot: &slatedb_graph_kernel::QueryTransportMetricsSnapshot,
-    ) -> Result<(), turbolay_telemetry::meter::HistogramError> {
+    ) -> Result<(), hydradb_telemetry::meter::HistogramError> {
         for (field, histogram) in snapshot.histogram_fields() {
             self.record(field, &[], histogram)?;
         }
@@ -1230,7 +1230,7 @@ impl NodeHistograms {
 pub struct NodeCounters {
     registered: std::collections::HashMap<
         (CounterSource, &'static str),
-        turbolay_telemetry::meter::ObservableCounter,
+        hydradb_telemetry::meter::ObservableCounter,
     >,
 }
 
@@ -1251,8 +1251,8 @@ impl NodeCounters {
     /// other way in — see the module note: `global::meter` would register every
     /// instrument against a no-op meter and report nothing, and the root package's
     /// manifest is what makes it unreachable rather than merely discouraged.
-    pub fn register(providers: &turbolay_telemetry::otlp::Providers) -> Self {
-        use turbolay_telemetry::meter::{CounterSpec, ObservableCounter};
+    pub fn register(providers: &hydradb_telemetry::otlp::Providers) -> Self {
+        use hydradb_telemetry::meter::{CounterSpec, ObservableCounter};
 
         let meter = providers.meter(METER_NAME);
         let instruments = otel_counter_instruments();
@@ -1289,9 +1289,9 @@ impl NodeCounters {
         &self,
         source: CounterSource,
         field: &'static str,
-        labels: &[(turbolay_telemetry::semconv::MetricLabel, &str)],
+        labels: &[(hydradb_telemetry::semconv::MetricLabel, &str)],
         value: u64,
-    ) -> Result<(), turbolay_telemetry::meter::CounterError> {
+    ) -> Result<(), hydradb_telemetry::meter::CounterError> {
         let Some(counter) = self.registered.get(&(source, field)) else {
             debug_assert!(
                 matches!(
@@ -1317,13 +1317,13 @@ impl NodeCounters {
     /// divergence is §1.4 and is the reason both exports exist. Never
     /// `cell_id × edge_type`, which is where §1.3's cardinality arithmetic stops
     /// being affordable. Neither is expressible here anyway: the label type's
-    /// constructor is private to `turbolay_telemetry::semconv` and `scope` is not
+    /// constructor is private to `hydradb_telemetry::semconv` and `scope` is not
     /// in the registry at all.
     pub fn record_shard_totals(
         &self,
         shards: &[slatedb_graph_kernel::ScopedGraphShardRuntimeMetrics],
-    ) -> Result<(), turbolay_telemetry::meter::CounterError> {
-        use turbolay_telemetry::semconv::L_CELL_ID;
+    ) -> Result<(), hydradb_telemetry::meter::CounterError> {
+        use hydradb_telemetry::semconv::L_CELL_ID;
 
         for (cell_id, fields) in shard_counter_totals(shards) {
             for (field, value) in fields {
@@ -1345,10 +1345,10 @@ impl NodeCounters {
         &self,
         source: CounterSource,
         field: &'static str,
-    ) -> Vec<turbolay_telemetry::meter::Observation<u64>> {
+    ) -> Vec<hydradb_telemetry::meter::Observation<u64>> {
         self.registered
             .get(&(source, field))
-            .map(turbolay_telemetry::meter::ObservableCounter::observations)
+            .map(hydradb_telemetry::meter::ObservableCounter::observations)
             .unwrap_or_default()
     }
 }
@@ -1397,7 +1397,7 @@ impl MetricCollection {
     /// `/metrics` is unaffected either way.
     #[cfg(feature = "otlp")]
     pub fn start(
-        telemetry: &turbolay_telemetry::TelemetryGuard,
+        telemetry: &hydradb_telemetry::TelemetryGuard,
         interval: std::time::Duration,
         query: slatedb_graph_kernel::ClientQueryService,
         node: std::sync::Arc<slatedb_graph_kernel::ScopedRoutedGraphCluster>,
@@ -1434,7 +1434,7 @@ impl MetricCollection {
     /// Without the `otlp` feature there is no meter to feed.
     #[cfg(not(feature = "otlp"))]
     pub fn start(
-        _telemetry: &turbolay_telemetry::TelemetryGuard,
+        _telemetry: &hydradb_telemetry::TelemetryGuard,
         _interval: std::time::Duration,
         _query: slatedb_graph_kernel::ClientQueryService,
         _node: std::sync::Arc<slatedb_graph_kernel::ScopedRoutedGraphCluster>,
@@ -2014,7 +2014,7 @@ mod tests {
         assert_eq!(before, otel.len(), "two OTel metrics share a name");
     }
 
-    /// `turbolay.scope` is unbounded per tenant, and §1.4's decision was to
+    /// `hydradb.scope` is unbounded per tenant, and §1.4's decision was to
     /// leave the families that already carry it and let nothing new join them.
     ///
     /// "Nothing new" is three specific families, named here. On the OTel side
@@ -2040,7 +2040,7 @@ mod tests {
     }
 
     /// The names may diverge — `/metrics` keeps `graph_*` and OTLP takes
-    /// `db.*`/`turbolay.*` — but a bucket bound rendered two different ways is
+    /// `db.*`/`hydradb.*` — but a bucket bound rendered two different ways is
     /// a single measurement that answers two different questions.
     #[test]
     fn the_two_exports_agree_about_the_unit() {
@@ -2119,7 +2119,7 @@ mod tests {
         assert_eq!(
             groups.len(),
             4,
-            "read and write share one instrument; the three turbolay.* metrics do not: {groups:#?}"
+            "read and write share one instrument; the three hydradb.* metrics do not: {groups:#?}"
         );
 
         for (name, rows) in &groups {
@@ -2164,7 +2164,7 @@ mod tests {
         assert_eq!(fields, vec!["read_latency", "write_latency"]);
     }
 
-    /// The semconv name is the *whole* name. A suffix would make it a Turbolay
+    /// The semconv name is the *whole* name. A suffix would make it a HydraDB
     /// metric wearing a semconv prefix, matching no vendor's database view and
     /// none of the queries that name is worth having for.
     #[test]
@@ -2178,19 +2178,19 @@ mod tests {
 
     /// The deliberate non-conformance, asserted rather than described: semconv
     /// marks `db.namespace` required-if-applicable on `db.client.*` and it *is*
-    /// applicable — the namespace is `turbolay.scope`, the unbounded tenant root
+    /// applicable — the namespace is `hydradb.scope`, the unbounded tenant root
     /// the label registry exists to keep off metrics. Its absence is the design,
     /// and a future row adding it back should fail here rather than in a bill.
     #[test]
     fn the_client_family_carries_no_namespace() {
         assert!(
-            !turbolay_telemetry::semconv::METRIC_LABELS
+            !hydradb_telemetry::semconv::METRIC_LABELS
                 .iter()
                 .any(|label| label.key() == "db.namespace"),
             "db.namespace became a metric label"
         );
-        assert!(turbolay_telemetry::semconv::SPAN_ONLY_KEYS
-            .contains(&turbolay_telemetry::semconv::SCOPE));
+        assert!(hydradb_telemetry::semconv::SPAN_ONLY_KEYS
+            .contains(&hydradb_telemetry::semconv::SCOPE));
     }
 
     /// `le` is the join between the two exports. The seconds rendering is the

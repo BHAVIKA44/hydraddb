@@ -27,9 +27,9 @@ use std::sync::{Arc, Mutex};
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use tracing_subscriber::layer::SubscriberExt;
-use turbolay_telemetry::layers::{RedactingFields, TurbolayJson};
-use turbolay_telemetry::sampling::TurbolaySampler;
-use turbolay_telemetry::{ServiceIdentity, TelemetryConfig};
+use hydradb_telemetry::layers::{RedactingFields, HydraDBJson};
+use hydradb_telemetry::sampling::HydraDBSampler;
+use hydradb_telemetry::{ServiceIdentity, TelemetryConfig};
 
 /// Collects the rendered stdout lines.
 #[derive(Clone, Default)]
@@ -61,13 +61,13 @@ fn capture_with_tracer(body: impl FnOnce()) -> Vec<serde_json::Value> {
     let config = TelemetryConfig::new(ServiceIdentity::GraphNode);
 
     let provider = SdkTracerProvider::builder()
-        .with_sampler(TurbolaySampler::new(0.0))
+        .with_sampler(HydraDBSampler::new(0.0))
         .build();
     let otel_layer = tracing_opentelemetry::layer().with_tracer(provider.tracer("test"));
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .fmt_fields(RedactingFields::json())
-        .event_format(TurbolayJson::new(&config))
+        .event_format(HydraDBJson::new(&config))
         .with_writer(capture.clone());
 
     let subscriber = tracing_subscriber::registry()

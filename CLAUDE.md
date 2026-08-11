@@ -42,7 +42,7 @@ tree it applies to:
 title: Sparse kernel backend consolidation
 status: draft-for-review        # draft-for-review | step-N-complete | done | superseded
 date: 2026-07-25
-branch: Turbolay-V3.5
+branch: HydraDB-V3.5
 base_commit: 989cc72            # tree the plan was written against
 head_commit: 73309df            # add once the work lands; omit while unstarted
 tags:
