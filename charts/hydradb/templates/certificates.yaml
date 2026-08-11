@@ -2,11 +2,11 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ include "turbolay.fullname" . }}-server
+  name: {{ include "hydradb.fullname" . }}-server
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
 spec:
-  secretName: {{ include "turbolay.publicTlsSecretName" . }}
+  secretName: {{ include "hydradb.publicTlsSecretName" . }}
   duration: {{ .Values.tls.certManager.publicDuration }}
   renewBefore: {{ .Values.tls.certManager.publicRenewBefore }}
   privateKey:
@@ -16,12 +16,12 @@ spec:
   usages:
     - server auth
   dnsNames:
-    - {{ include "turbolay.fullname" . }}-bolt.{{ .Release.Namespace }}.svc
-    - {{ include "turbolay.fullname" . }}-bolt.{{ .Release.Namespace }}.svc.cluster.local
-    - {{ include "turbolay.fullname" . }}-https.{{ .Release.Namespace }}.svc
-    - {{ include "turbolay.fullname" . }}-https.{{ .Release.Namespace }}.svc.cluster.local
-    - {{ printf "*.%s-node-headless.%s.svc" (include "turbolay.fullname" .) .Release.Namespace | quote }}
-    - {{ printf "*.%s-node-headless.%s.svc.cluster.local" (include "turbolay.fullname" .) .Release.Namespace | quote }}
+    - {{ include "hydradb.fullname" . }}-bolt.{{ .Release.Namespace }}.svc
+    - {{ include "hydradb.fullname" . }}-bolt.{{ .Release.Namespace }}.svc.cluster.local
+    - {{ include "hydradb.fullname" . }}-https.{{ .Release.Namespace }}.svc
+    - {{ include "hydradb.fullname" . }}-https.{{ .Release.Namespace }}.svc.cluster.local
+    - {{ printf "*.%s-node-headless.%s.svc" (include "hydradb.fullname" .) .Release.Namespace | quote }}
+    - {{ printf "*.%s-node-headless.%s.svc.cluster.local" (include "hydradb.fullname" .) .Release.Namespace | quote }}
     {{- range .Values.tls.public.additionalDnsNames }}
     - {{ . | quote }}
     {{- end }}

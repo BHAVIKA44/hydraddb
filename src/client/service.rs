@@ -168,7 +168,7 @@ fn unknown_graph_database(database: &str) -> GraphError {
 }
 
 /// One tenancy segment of a [`GraphScope`], in both the form the scope stores
-/// and the form everything outside Turbolay uses.
+/// and the form everything outside HydraDB uses.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ScopeTenant {
     /// The segment verbatim — URL-safe unpadded base64, as
@@ -194,7 +194,7 @@ pub(crate) struct ScopeTenant {
 /// and from the Bolt page spans, which hold even less.
 ///
 /// A root namespace deeper than one segment would shift both positions. None is
-/// configured: `GRAPH_NAMESPACE` is a single segment in `charts/turbolay`, in
+/// configured: `GRAPH_NAMESPACE` is a single segment in `charts/hydradb`, in
 /// `scripts/deploy_single_node_k3s.sh` and in `scripts/runtime_smoke.sh`, and
 /// the HTTP `x-graph-namespace` header carries the same three-segment path Bolt
 /// encodes into its database name. A deeper root does not misreport a tenant as
@@ -245,7 +245,7 @@ impl ScopeTenant {
 /// sub-tenant name the platform issues. The cost is a genuinely non-ASCII
 /// sub-tenant name — a mailbox label in Japanese — reported by its base64
 /// spelling instead; nothing is lost, since that spelling is what
-/// `turbolay.sub_tenant.scope_id` carries in every case anyway.
+/// `hydradb.sub_tenant.scope_id` carries in every case anyway.
 fn decode_scope_id(encoded: &str) -> Option<String> {
     let bytes = URL_SAFE_NO_PAD.decode(encoded).ok()?;
     let value = String::from_utf8(bytes).ok()?;
@@ -273,12 +273,12 @@ fn decode_scope_id(encoded: &str) -> Option<String> {
 pub(crate) fn record_scope_tenancy(span: &tracing::Span, scope: &GraphScope) {
     let tenancy = ScopeTenancy::from_scope(scope);
     if let Some(tenant) = &tenancy.tenant {
-        span.record("turbolay.tenant_id", tenant.id.as_str());
-        span.record("turbolay.tenant.scope_id", tenant.scope_id.as_str());
+        span.record("hydradb.tenant_id", tenant.id.as_str());
+        span.record("hydradb.tenant.scope_id", tenant.scope_id.as_str());
     }
     if let Some(sub_tenant) = &tenancy.sub_tenant {
-        span.record("turbolay.sub_tenant_id", sub_tenant.id.as_str());
-        span.record("turbolay.sub_tenant.scope_id", sub_tenant.scope_id.as_str());
+        span.record("hydradb.sub_tenant_id", sub_tenant.id.as_str());
+        span.record("hydradb.sub_tenant.scope_id", sub_tenant.scope_id.as_str());
     }
 }
 
@@ -511,11 +511,11 @@ pub struct ClientQueryRequest {
     /// fallback when this field is absent.
     mutation_idempotency_key: Option<ClientMutationIdempotencyKey>,
     /// Caller-supplied request identifier, carried through from Bolt
-    /// `tx_metadata` (`turbolay.correlation_id`). It exists so a Turbolay span
-    /// and the caller's own log line share a field; Turbolay never mints one,
+    /// `tx_metadata` (`hydradb.correlation_id`). It exists so a HydraDB span
+    /// and the caller's own log line share a field; HydraDB never mints one,
     /// because a server-invented value looks like a join key and joins nothing.
     pub correlation_id: Option<String>,
-    /// Caller-supplied operation label (`turbolay.caller.step`) — which step of
+    /// Caller-supplied operation label (`hydradb.caller.step`) — which step of
     /// a multi-step caller workflow issued this query.
     pub caller_step: Option<String>,
 }
@@ -1148,12 +1148,12 @@ impl ClientQueryService {
     pub async fn ensure_bookmark(&self, bookmark: &ClientBookmark) -> Result<()> {
         let span = tracing::info_span!(
             "query.bookmark_wait",
-            turbolay.scope = %bookmark.target.scope,
-            turbolay.cell_id = %bookmark.target.cell_id,
-            turbolay.read_epoch = bookmark.epoch,
+            hydradb.scope = %bookmark.target.scope,
+            hydradb.cell_id = %bookmark.target.cell_id,
+            hydradb.read_epoch = bookmark.epoch,
             observed_epoch = tracing::field::Empty,
             error.class = tracing::field::Empty,
-            turbolay.sampling.tail_keep = tracing::field::Empty,
+            hydradb.sampling.tail_keep = tracing::field::Empty,
         );
         let outcome = async {
             let current_sequence = self
@@ -1233,11 +1233,11 @@ impl ClientQueryService {
         match &result {
             Ok(response) => {
                 span.record(
-                    "turbolay.query.rows_returned",
+                    "hydradb.query.rows_returned",
                     response.result.rows.len() as u64,
                 );
                 if let Some(read_epoch) = response.read_epoch {
-                    span.record("turbolay.read_epoch", read_epoch);
+                    span.record("hydradb.read_epoch", read_epoch);
                 }
             }
             Err(err) => record_span_error(&span, err),
@@ -1361,11 +1361,11 @@ impl ClientQueryService {
         match &result {
             Ok(response) => {
                 span.record(
-                    "turbolay.query.rows_returned",
+                    "hydradb.query.rows_returned",
                     response.page.rows.len() as u64,
                 );
                 if let Some(read_epoch) = response.read_epoch {
-                    span.record("turbolay.read_epoch", read_epoch);
+                    span.record("hydradb.read_epoch", read_epoch);
                 }
             }
             Err(err) => record_span_error(&span, err),
@@ -1939,8 +1939,8 @@ impl ClientQueryService {
         }
         let span = tracing::info_span!(
             "query.strong_refresh",
-            turbolay.scope = %request.target.scope,
-            turbolay.cell_id = %request.target.cell_id,
+            hydradb.scope = %request.target.scope,
+            hydradb.cell_id = %request.target.cell_id,
             error.class = tracing::field::Empty,
         );
         let refresh = self
@@ -1979,16 +1979,16 @@ impl ClientQueryService {
             //
             // It is also the number the whole freshness class of bugs is about
             // — the bookmark handed back here is what a later read pins its
-            // epoch to, so `turbolay.commit_epoch` recorded here is the value
+            // epoch to, so `hydradb.commit_epoch` recorded here is the value
             // `query.bookmark_wait` is waiting to catch up with, on a different
             // trace and possibly a different node.
             let span = tracing::info_span!(
                 "write.bookmark",
-                turbolay.scope = %request.target.scope,
-                turbolay.cell_id = %request.target.cell_id,
-                turbolay.commit_epoch = tracing::field::Empty,
+                hydradb.scope = %request.target.scope,
+                hydradb.cell_id = %request.target.cell_id,
+                hydradb.commit_epoch = tracing::field::Empty,
                 error.class = tracing::field::Empty,
-                turbolay.sampling.tail_keep = tracing::field::Empty,
+                hydradb.sampling.tail_keep = tracing::field::Empty,
             );
             let sequence = self
                 .inner
@@ -1998,7 +1998,7 @@ impl ClientQueryService {
                 .await
                 .inspect_err(|err| record_span_error(&span, err))?;
             if let Some(sequence) = sequence {
-                span.record("turbolay.commit_epoch", sequence);
+                span.record("hydradb.commit_epoch", sequence);
             }
             sequence
         };
@@ -2052,7 +2052,7 @@ impl ClientQueryService {
             // backpressure report, not a slow query.
             let admission = tracing::info_span!(
                 "query.admission",
-                turbolay.scope = %key.scope,
+                hydradb.scope = %key.scope,
                 error.class = tracing::field::Empty,
             );
             let permits = async {
@@ -2212,8 +2212,8 @@ fn record_span_error(span: &tracing::Span, err: &GraphError) {
     // which was before this request could possibly be known to fail, so nothing
     // recorded here can change it. The marker is for the collector's tail
     // sampler, which buffers the whole trace and *can* — see
-    // `turbolay_telemetry::sampling` for the policy that deployment owes us.
-    span.record("turbolay.sampling.tail_keep", "error");
+    // `hydradb_telemetry::sampling` for the policy that deployment owes us.
+    span.record("hydradb.sampling.tail_keep", "error");
 }
 
 /// The trace root for one client request.
@@ -2252,21 +2252,21 @@ pub(crate) fn client_root_span(
             tracing::info_span!(
                 $name,
                 db.system.name = "neo4j",
-                turbolay.scope = %request.target.scope,
-                turbolay.cell_id = %request.target.cell_id,
-                turbolay.tenant_id = tracing::field::Empty,
-                turbolay.tenant.scope_id = tracing::field::Empty,
-                turbolay.sub_tenant_id = tracing::field::Empty,
-                turbolay.sub_tenant.scope_id = tracing::field::Empty,
-                turbolay.query.fingerprint = %fingerprint,
-                turbolay.consistency = ?request.consistency,
-                turbolay.correlation_id = tracing::field::Empty,
-                turbolay.caller.step = tracing::field::Empty,
-                turbolay.read_epoch = tracing::field::Empty,
-                turbolay.query.rows_returned = tracing::field::Empty,
+                hydradb.scope = %request.target.scope,
+                hydradb.cell_id = %request.target.cell_id,
+                hydradb.tenant_id = tracing::field::Empty,
+                hydradb.tenant.scope_id = tracing::field::Empty,
+                hydradb.sub_tenant_id = tracing::field::Empty,
+                hydradb.sub_tenant.scope_id = tracing::field::Empty,
+                hydradb.query.fingerprint = %fingerprint,
+                hydradb.consistency = ?request.consistency,
+                hydradb.correlation_id = tracing::field::Empty,
+                hydradb.caller.step = tracing::field::Empty,
+                hydradb.read_epoch = tracing::field::Empty,
+                hydradb.query.rows_returned = tracing::field::Empty,
                 runtime_limit_ms = tracing::field::Empty,
                 error.class = tracing::field::Empty,
-                turbolay.sampling.tail_keep = tracing::field::Empty,
+                hydradb.sampling.tail_keep = tracing::field::Empty,
             )
         };
     }
@@ -2278,16 +2278,16 @@ pub(crate) fn client_root_span(
     // The tenancy goes on the root and nowhere else, so that every line logged
     // under this request — planner warnings, admission refusals, the error the
     // query dies of — is attributable to a customer without any call site
-    // knowing there is a customer. `turbolay.scope` above already contains both
+    // knowing there is a customer. `hydradb.scope` above already contains both
     // segments, but only as one opaque path a warehouse cannot split.
     record_scope_tenancy(&span, &request.target.scope);
     // Absent rather than empty: a blank correlation id is indistinguishable
     // from one that failed validation, and both would join to nothing.
     if let Some(correlation_id) = &request.correlation_id {
-        span.record("turbolay.correlation_id", correlation_id.as_str());
+        span.record("hydradb.correlation_id", correlation_id.as_str());
     }
     if let Some(caller_step) = &request.caller_step {
-        span.record("turbolay.caller.step", caller_step.as_str());
+        span.record("hydradb.caller.step", caller_step.as_str());
     }
     if let Some(limit) = request.max_runtime_ms {
         span.record("runtime_limit_ms", limit);

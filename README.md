@@ -55,7 +55,7 @@ src/sparse_kernel.rs
                  Rust sparse traversal and optional SuiteSparse GraphBLAS FFI
 examples/        smoke, stress, correctness, benchmark, and profiling binaries
 scripts/         local, MinIO, query, write, stress, and chaos harnesses
-charts/turbolay/ production Helm chart for graph nodes and indexer workers
+charts/hydradb/ production Helm chart for graph nodes and indexer workers
 architecture.md  high-level system design and low-level component flows
 ```
 
@@ -161,24 +161,24 @@ checkout, provisions auth and TLS secrets, imports the image into K3s, and
 installs the chart:
 
 ```bash
-TURBOLAY_S3_BUCKET=graph-benchmark ./scripts/deploy_single_node_k3s.sh
+HYDRADB_S3_BUCKET=graph-benchmark ./scripts/deploy_single_node_k3s.sh
 ```
 
 On EC2 the public DNS name and IP are discovered automatically. Elsewhere, set
-`TURBOLAY_PUBLIC_HOST`. The script prints the Bolt and HTTPS endpoints and keeps
-the generated client token under `~/.config/turbolay-single-node/`.
+`HYDRADB_PUBLIC_HOST`. The script prints the Bolt and HTTPS endpoints and keeps
+the generated client token under `~/.config/hydradb-single-node/`.
 
 ```bash
-helm upgrade --install turbolay charts/turbolay \
-  --namespace turbolay \
+helm upgrade --install hydradb charts/hydradb \
+  --namespace hydradb \
   --create-namespace \
-  --values charts/turbolay/examples/values-eks.yaml \
+  --values charts/hydradb/examples/values-eks.yaml \
   --atomic \
   --timeout 15m
 ```
 
 Copy the EKS example before use and replace its account, IAM role, DNS, issuer,
-bucket, and image values. See `charts/turbolay/README.md` for TLS, authentication,
+bucket, and image values. See `charts/hydradb/README.md` for TLS, authentication,
 cache storage, upgrade, and verification details. Helm is the single supported
 Kubernetes deployment source; environment values live in `hydradb-argocd`.
 
@@ -496,7 +496,7 @@ There are exactly two read-consistency modes:
 
 HTTPS accepts `"consistency": "causal"` or `"strong"` in the query body. Bolt
 accepts the same value in RUN metadata as `consistency`, or as
-`tx_metadata["turbolay.consistency"]`. Mutation queries reject `strong` because
+`tx_metadata["hydradb.consistency"]`. Mutation queries reject `strong` because
 write acknowledgement already defines their durable commit point.
 
 Bolt supports `HELLO`, `LOGON`, `LOGOFF`, auto-commit `RUN`, bounded or complete

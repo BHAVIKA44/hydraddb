@@ -16,7 +16,7 @@ use tokio::sync::{Mutex, OnceCell, OwnedMutexGuard, RwLock as AsyncRwLock, Semap
 #[cfg(feature = "opencypher")]
 use tokio::task::JoinHandle;
 use tracing::Instrument as _;
-use turbolay_placement::cell_writer;
+use hydradb_placement::cell_writer;
 
 #[cfg(feature = "opencypher")]
 use crate::query::opencypher::ParsedRowQuery;
@@ -190,7 +190,7 @@ fn process_writer_cleanup_runtime() -> &'static tokio::runtime::Handle {
     PROCESS_WRITER_CLEANUP_RUNTIME.get_or_init(|| {
         let (sender, receiver) = std::sync::mpsc::sync_channel(1);
         std::thread::Builder::new()
-            .name("turbolay-writer-cleanup".to_string())
+            .name("hydradb-writer-cleanup".to_string())
             .spawn(move || {
                 let runtime = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
@@ -733,8 +733,8 @@ impl GraphStore {
     /// query. The three attribution fields are declared empty and filled in by
     /// [`Self::log_fence_attribution`] only on the fence arm, so a healthy
     /// refresh carries no extra cost and a fence carries the identity of
-    /// whoever took the epoch. Grouping these spans by `turbolay.cell_id` and
-    /// counting distinct `turbolay.writer.last_promoted_by` over five minutes is
+    /// whoever took the epoch. Grouping these spans by `hydradb.cell_id` and
+    /// counting distinct `hydradb.writer.last_promoted_by` over five minutes is
     /// the incident, stated as a query.
     ///
     /// **Emission only.** Every branch, every gate and every wait below is
@@ -746,11 +746,11 @@ impl GraphStore {
             "writer.fence_refresh",
             // `Path::filename` is the cell directory and costs no allocation;
             // `cell_location` is only paid for on the fence arm.
-            turbolay.cell_id = self.inner.path.filename().unwrap_or_default(),
-            turbolay.writer.epoch = tracing::field::Empty,
-            turbolay.writer.last_promoted_by = tracing::field::Empty,
-            turbolay.writer.last_promoted_epoch = tracing::field::Empty,
-            turbolay.writer.last_promoted_at = tracing::field::Empty,
+            hydradb.cell_id = self.inner.path.filename().unwrap_or_default(),
+            hydradb.writer.epoch = tracing::field::Empty,
+            hydradb.writer.last_promoted_by = tracing::field::Empty,
+            hydradb.writer.last_promoted_epoch = tracing::field::Empty,
+            hydradb.writer.last_promoted_at = tracing::field::Empty,
             error.class = tracing::field::Empty,
         );
         self.refresh_writer_fence_traced().instrument(span).await
@@ -777,7 +777,7 @@ impl GraphStore {
                 // Half of the log line below is meaningless without it.
                 let lost_epoch = self.writer_epoch();
                 if let Some(epoch) = lost_epoch {
-                    tracing::Span::current().record("turbolay.writer.epoch", epoch);
+                    tracing::Span::current().record("hydradb.writer.epoch", epoch);
                 }
                 self.clear_closed_writer();
                 self.log_fence_attribution(lost_epoch).await;
@@ -833,8 +833,8 @@ impl GraphStore {
     /// correlate them to — one free-floating message per fence, joinable to the
     /// rest of the incident only by timestamp. Promoted onto the enclosing
     /// `writer.fence_refresh` span they answer the ping-pong question directly:
-    /// group by `turbolay.cell_id`, count distinct
-    /// `turbolay.writer.last_promoted_by` over a window, and a count above one
+    /// group by `hydradb.cell_id`, count distinct
+    /// `hydradb.writer.last_promoted_by` over a window, and a count above one
     /// *is* the duel. The warn stays exactly as it was, for whoever is tailing a
     /// pod rather than querying a backend.
     async fn log_fence_attribution(&self, lost_epoch: Option<u64>) {
@@ -851,12 +851,12 @@ impl GraphStore {
             Ok(Some(record)) => {
                 let span = tracing::Span::current();
                 span.record(
-                    "turbolay.writer.last_promoted_by",
+                    "hydradb.writer.last_promoted_by",
                     tracing::field::display(&record.node_id),
                 );
-                span.record("turbolay.writer.last_promoted_epoch", record.epoch);
+                span.record("hydradb.writer.last_promoted_epoch", record.epoch);
                 span.record(
-                    "turbolay.writer.last_promoted_at",
+                    "hydradb.writer.last_promoted_at",
                     tracing::field::display(&record.at),
                 );
                 tracing::warn!(

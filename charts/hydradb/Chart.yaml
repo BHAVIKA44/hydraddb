@@ -1,5 +1,5 @@
 apiVersion: v2
-name: turbolay
+name: hydradb
 description: Stateless distributed graph database backed by SlateDB and object storage
 type: application
 version: 0.1.0

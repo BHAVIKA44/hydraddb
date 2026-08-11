@@ -99,7 +99,7 @@ where
         Box::new(
             tracing_subscriber::fmt::layer()
                 .fmt_fields(RedactingFields::json())
-                .event_format(TurbolayJson::new(config)),
+                .event_format(HydraDBJson::new(config)),
         )
     } else {
         Box::new(
@@ -162,17 +162,17 @@ impl<'writer> FormatFields<'writer> for RedactingFields {
     /// exactly right, and the text arm below keeps it. For JSON it is fatal —
     /// the stored buffer becomes `{"a":1} {"b":2}`, which is two objects and
     /// not a document, so the `serde_json::from_str` in
-    /// [`TurbolayJson::format_event`] fails and drops the span's fields
+    /// [`HydraDBJson::format_event`] fails and drops the span's fields
     /// *entirely*. The span still appears in the `spans` array, with nothing
     /// but its name.
     ///
     /// That is not an edge case here, it is the common path. Attributes only
-    /// known once the work is done — `error.class`, `turbolay.writer.epoch`,
+    /// known once the work is done — `error.class`, `hydradb.writer.epoch`,
     /// the three `last_promoted_*` fields — are declared
     /// `tracing::field::Empty` at span creation and filled with
     /// `Span::record`, which is what makes a healthy request pay nothing for
     /// them. Every one of those spans was losing its creation-time fields in
-    /// the JSON logs: `turbolay.cell_id` and `turbolay.node_id` vanished from
+    /// the JSON logs: `hydradb.cell_id` and `hydradb.node_id` vanished from
     /// precisely the fence spans whose whole purpose is to be grouped by
     /// `cell_id`.
     ///
@@ -294,7 +294,7 @@ impl tracing::field::Visit for JsonFieldVisitor {
 /// The rest are plain renames from the name a Rust call site writes to the name
 /// the warehouse column has. Two days of staging traffic put `error_type`,
 /// `correlation_id` and `operation` at exactly zero populated rows out of
-/// 82,807, because every one of them was spelled the `turbolay.*` way and left
+/// 82,807, because every one of them was spelled the `hydradb.*` way and left
 /// nested. A rename table is all that gap ever was.
 ///
 /// Values are copied **verbatim**, with no type coercion: `duration_ms` and
@@ -302,19 +302,19 @@ impl tracing::field::Visit for JsonFieldVisitor {
 /// Coercing here as well would mean two places to disagree about what
 /// `elapsed_ms = "n/a"` means, and the one that runs first would silently win.
 ///
-/// The base64 spellings (`turbolay.tenant.scope_id`) are deliberately not
-/// promoted. They have no column, they are what `turbolay.scope` already spells
+/// The base64 spellings (`hydradb.tenant.scope_id`) are deliberately not
+/// promoted. They have no column, they are what `hydradb.scope` already spells
 /// out on the span, and a root key with no column is copied into the attributes
 /// map on every single line.
 const PROMOTED_SPAN_FIELDS: &[(&str, &str)] = &[
-    ("turbolay.tenant_id", "tenant_id"),
-    ("turbolay.sub_tenant_id", "sub_tenant_id"),
+    ("hydradb.tenant_id", "tenant_id"),
+    ("hydradb.sub_tenant_id", "sub_tenant_id"),
     ("error.class", "error_type"),
     ("error", "error_message"),
-    ("turbolay.correlation_id", "correlation_id"),
-    ("turbolay.outcome", "event"),
+    ("hydradb.correlation_id", "correlation_id"),
+    ("hydradb.outcome", "event"),
     ("elapsed_ms", "duration_ms"),
-    ("turbolay.query.rows_returned", "result_count"),
+    ("hydradb.query.rows_returned", "result_count"),
 ];
 
 /// Root keys the line owns, which a same-named event field must not overwrite.
@@ -385,11 +385,11 @@ fn text_of(value: &serde_json::Value) -> String {
 /// The struct field stays `service`; only the emitted key is `service_name`,
 /// which is the name of the `cortex_logs_v2` column and of the OTel resource
 /// attribute every other service already writes. Spelling it `service` on the
-/// wire bought a turbolay-only rename rule in the collector config, and a
+/// wire bought a hydradb-only rename rule in the collector config, and a
 /// collector rule that exists for exactly one producer is a rule that stops
 /// being applied the day somebody rewrites the pipeline.
 #[derive(Clone, Debug)]
-pub struct TurbolayJson {
+pub struct HydraDBJson {
     binary: &'static str,
     service: &'static str,
     instance: String,
@@ -397,7 +397,7 @@ pub struct TurbolayJson {
     environment: Option<String>,
 }
 
-impl TurbolayJson {
+impl HydraDBJson {
     /// Build from a config.
     pub fn new(config: &TelemetryConfig) -> Self {
         Self {
@@ -419,7 +419,7 @@ impl TurbolayJson {
     }
 }
 
-impl<S, N> FormatEvent<S, N> for TurbolayJson
+impl<S, N> FormatEvent<S, N> for HydraDBJson
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
     N: for<'a> FormatFields<'a> + 'static,
@@ -519,7 +519,7 @@ where
         // map exists because the collector cannot see into an array. Merging
         // root→innermost gives the innermost span the last word on a repeated
         // key while a field only an *outer* span carries still survives:
-        // `turbolay.scope` is recorded on `index.scope`, and an event that
+        // `hydradb.scope` is recorded on `index.scope`, and an event that
         // fires three frames down inside `artifact.publish` would otherwise
         // carry no scope at all. The duplication against `spans` is deliberate
         // and paid for knowingly.
@@ -725,7 +725,7 @@ mod tests {
         let config = TelemetryConfig::new(identity);
         let layer = tracing_subscriber::fmt::layer()
             .fmt_fields(RedactingFields::json())
-            .event_format(TurbolayJson::new(&config))
+            .event_format(HydraDBJson::new(&config))
             .with_writer(capture.clone());
         let subscriber = tracing_subscriber::registry().with(layer);
         tracing::subscriber::with_default(subscriber, body);
@@ -743,7 +743,7 @@ mod tests {
         });
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0]["binary"], "graph-indexer");
-        assert_eq!(lines[0]["service_name"], "turbolay-graph-indexer");
+        assert_eq!(lines[0]["service_name"], "hydradb-graph-indexer");
         assert_eq!(lines[0]["message"], "graph index generation published");
         // Root, not under `fields`: the collector maps root keys to columns and
         // buckets anything nested into an opaque blob.
@@ -814,14 +814,14 @@ mod tests {
         let lines = capture_json(ServiceIdentity::GraphNode, || {
             let request = tracing::info_span!(
                 "client.query",
-                turbolay.tenant_id = "l3c4v6lu2w",
-                turbolay.sub_tenant_id = "[Gmail]/All Mail",
-                turbolay.tenant.scope_id = "bDNjNHY2bHUydw",
+                hydradb.tenant_id = "l3c4v6lu2w",
+                hydradb.sub_tenant_id = "[Gmail]/All Mail",
+                hydradb.tenant.scope_id = "bDNjNHY2bHUydw",
             );
             let _request = request.enter();
             let plan = tracing::info_span!("query.plan");
             let _plan = plan.enter();
-            tracing::warn!(turbolay.query.full_scan = true, "unindexed access path");
+            tracing::warn!(hydradb.query.full_scan = true, "unindexed access path");
         });
         assert_eq!(lines[0]["tenant_id"], "l3c4v6lu2w");
         assert_eq!(lines[0]["sub_tenant_id"], "[Gmail]/All Mail");
@@ -829,7 +829,7 @@ mod tests {
         // key with no column is copied into the attributes map on every line.
         assert!(lines[0].get("tenant.scope_id").is_none());
         assert_eq!(
-            lines[0]["spans"][0]["turbolay.tenant.scope_id"],
+            lines[0]["spans"][0]["hydradb.tenant.scope_id"],
             "bDNjNHY2bHUydw"
         );
     }
@@ -852,7 +852,7 @@ mod tests {
     #[test]
     fn a_tenant_without_a_sub_tenant_still_promotes() {
         let lines = capture_json(ServiceIdentity::GraphNode, || {
-            let span = tracing::info_span!("client.query", turbolay.tenant_id = "l3c4v6lu2w");
+            let span = tracing::info_span!("client.query", hydradb.tenant_id = "l3c4v6lu2w");
             span.in_scope(|| tracing::info!("executing"));
         });
         assert_eq!(lines[0]["tenant_id"], "l3c4v6lu2w");
@@ -876,26 +876,26 @@ mod tests {
     /// span's fields with it.
     ///
     /// The whole deferred-attribute pattern rests on this: `error.class`,
-    /// `turbolay.writer.epoch` and the `last_promoted_*` fields are declared
+    /// `hydradb.writer.epoch` and the `last_promoted_*` fields are declared
     /// `Empty` up front and filled only when the work resolves, so a healthy
     /// request pays nothing. With the default appending `add_fields` the stored
     /// buffer became two concatenated JSON objects, the event formatter's parse
     /// failed, and the span was emitted with its name and *nothing else* —
-    /// losing `turbolay.cell_id` from exactly the fence spans that exist to be
+    /// losing `hydradb.cell_id` from exactly the fence spans that exist to be
     /// grouped by it. Silent, JSON-only, and invisible to OTLP.
     #[test]
     fn recording_a_field_later_keeps_the_fields_set_at_creation() {
         let lines = capture_json(ServiceIdentity::GraphNode, || {
             let span = tracing::info_span!(
                 "writer.fence_refresh",
-                turbolay.cell_id = "cell-7",
-                turbolay.writer.epoch = tracing::field::Empty,
+                hydradb.cell_id = "cell-7",
+                hydradb.writer.epoch = tracing::field::Empty,
             );
-            span.record("turbolay.writer.epoch", 412u64);
+            span.record("hydradb.writer.epoch", 412u64);
             span.in_scope(|| tracing::info!("fenced"));
         });
-        assert_eq!(lines[0]["spans"][0]["turbolay.cell_id"], "cell-7");
-        assert_eq!(lines[0]["spans"][0]["turbolay.writer.epoch"], 412);
+        assert_eq!(lines[0]["spans"][0]["hydradb.cell_id"], "cell-7");
+        assert_eq!(lines[0]["spans"][0]["hydradb.writer.epoch"], 412);
     }
 
     /// Types survive promotion as well as flattening. `duration_ms` and
@@ -938,7 +938,7 @@ mod tests {
         // The `error` field's contents, not its quoted JSON rendering.
         assert_eq!(lines[1]["message"], "connection refused");
         assert_eq!(lines[2]["message"], "BatchLogProcessor.Export.Error");
-        assert_eq!(lines[3]["message"], "turbolay_telemetry::layers::tests");
+        assert_eq!(lines[3]["message"], "hydradb_telemetry::layers::tests");
         for line in &lines {
             assert!(
                 line["message"]
@@ -971,10 +971,10 @@ mod tests {
             tracing::error!(
                 error.class = "storage",
                 error = "object store timeout",
-                turbolay.correlation_id = "c-42",
-                turbolay.outcome = "failure",
+                hydradb.correlation_id = "c-42",
+                hydradb.outcome = "failure",
                 elapsed_ms = 1200u64,
-                turbolay.query.rows_returned = 0u64,
+                hydradb.query.rows_returned = 0u64,
                 "write failed"
             );
         });
@@ -1005,8 +1005,8 @@ mod tests {
             tracing::error!(name = "ExportError", "export failed");
             tracing::error!(error.class = "storage", "classified");
         });
-        assert_eq!(lines[0]["error_type"], "turbolay_telemetry::layers::tests");
-        assert_eq!(lines[1]["error_type"], "turbolay_telemetry::layers::tests");
+        assert_eq!(lines[0]["error_type"], "hydradb_telemetry::layers::tests");
+        assert_eq!(lines[1]["error_type"], "hydradb_telemetry::layers::tests");
         assert!(lines[2].get("error_type").is_none());
         // `name` outranks the target: it is the SDK's own error name, which is
         // both bounded and more specific than the module that logged it.
@@ -1026,7 +1026,7 @@ mod tests {
             lines[0]["error_message"],
             "conditional write failed for key cell-7/00412.sst"
         );
-        assert_eq!(lines[0]["error_type"], "turbolay_telemetry::layers::tests");
+        assert_eq!(lines[0]["error_type"], "hydradb_telemetry::layers::tests");
     }
 
     /// A field named like a root key the line owns must not rewrite it. A
@@ -1044,7 +1044,7 @@ mod tests {
                 "collision"
             );
         });
-        assert_eq!(lines[0]["target"], "turbolay_telemetry::layers::tests");
+        assert_eq!(lines[0]["target"], "hydradb_telemetry::layers::tests");
         assert_eq!(lines[0]["level"], "INFO");
         assert!(lines[0].get("tenant_id").is_none() || lines[0]["tenant_id"] != "not-the-tenant");
         assert_eq!(lines[0]["fields"]["target"], "not-the-module");
@@ -1074,29 +1074,29 @@ mod tests {
     /// The merged `span` object exists because the collector cannot see into
     /// the `spans` array. Merging root→innermost gives the innermost span the
     /// last word while a field only an outer span carries still survives — the
-    /// `turbolay.scope`-set-on-`index.scope` case, where the event fires frames
+    /// `hydradb.scope`-set-on-`index.scope` case, where the event fires frames
     /// deeper inside `artifact.publish`.
     #[test]
     fn the_merged_span_object_takes_the_innermost_value_and_keeps_outer_only_fields() {
         let lines = capture_json(ServiceIdentity::GraphNode, || {
             let outer = tracing::info_span!(
                 "index.scope",
-                turbolay.scope = "acme/mail",
-                turbolay.cell_id = "cell-1"
+                hydradb.scope = "acme/mail",
+                hydradb.cell_id = "cell-1"
             );
             let _outer = outer.enter();
-            let inner = tracing::info_span!("artifact.publish", turbolay.cell_id = "cell-9");
+            let inner = tracing::info_span!("artifact.publish", hydradb.cell_id = "cell-9");
             inner.in_scope(|| tracing::info!("published"));
         });
-        assert_eq!(lines[0]["span"]["turbolay.cell_id"], "cell-9");
-        assert_eq!(lines[0]["span"]["turbolay.scope"], "acme/mail");
+        assert_eq!(lines[0]["span"]["hydradb.cell_id"], "cell-9");
+        assert_eq!(lines[0]["span"]["hydradb.scope"], "acme/mail");
         // The synthetic span name is `operation`, not a merged field.
         assert!(lines[0]["span"].get("name").is_none());
         // `spans` is unchanged: it keeps the nesting a human reads by, and the
         // duplication is an accepted cost.
         assert_eq!(lines[0]["spans"][0]["name"], "index.scope");
-        assert_eq!(lines[0]["spans"][0]["turbolay.cell_id"], "cell-1");
-        assert_eq!(lines[0]["spans"][1]["turbolay.cell_id"], "cell-9");
+        assert_eq!(lines[0]["spans"][0]["hydradb.cell_id"], "cell-1");
+        assert_eq!(lines[0]["spans"][1]["hydradb.cell_id"], "cell-9");
     }
 
     /// An event field outranks the span stack for both the promoted columns and
@@ -1105,12 +1105,12 @@ mod tests {
     #[test]
     fn an_event_field_outranks_the_same_field_on_the_span() {
         let lines = capture_json(ServiceIdentity::GraphNode, || {
-            let span = tracing::info_span!("client.query", turbolay.tenant_id = "span-tenant");
+            let span = tracing::info_span!("client.query", hydradb.tenant_id = "span-tenant");
             span.in_scope(|| {
-                tracing::info!(turbolay.tenant_id = "event-tenant", "executing");
+                tracing::info!(hydradb.tenant_id = "event-tenant", "executing");
             });
         });
         assert_eq!(lines[0]["tenant_id"], "event-tenant");
-        assert_eq!(lines[0]["span"]["turbolay.tenant_id"], "span-tenant");
+        assert_eq!(lines[0]["span"]["hydradb.tenant_id"], "span-tenant");
     }
 }

@@ -51,7 +51,7 @@
 //!
 //! Ported from `sleet/src/root.rs` (`youngest_per_node`, `node_view`) and
 //! `sleet/src/daemon.rs` (`owned_assignments`, where self-always-live lives),
-//! with sleet's per-node service list dropped — every Turbolay node serves
+//! with sleet's per-node service list dropped — every HydraDB node serves
 //! every cell today, and §3's extension point puts that in the object *name*
 //! when it stops being true.
 

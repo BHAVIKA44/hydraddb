@@ -1,6 +1,6 @@
 //! The field denylist, and the machinery that applies it.
 //!
-//! Turbolay is multi-tenant. Query parameters, property maps and bookmarks all
+//! HydraDB is multi-tenant. Query parameters, property maps and bookmarks all
 //! carry customer data, and a telemetry pipeline ships to a third-party backend
 //! by design — so "do not log parameter values" cannot be a convention that 50
 //! call sites are each trusted to remember. The failure mode of the convention
@@ -56,7 +56,7 @@ const DENYLIST: &[&str] = &[
 /// Whether a field's value must be replaced before export.
 ///
 /// Matches the full name (`parameters`) or any dotted suffix
-/// (`query.parameters`, `turbolay.query.parameters`). Suffix matching rather
+/// (`query.parameters`, `hydradb.query.parameters`). Suffix matching rather
 /// than substring matching is deliberate: substring would swallow
 /// `parameter_count`, which is a harmless integer and genuinely useful.
 pub fn is_redacted(name: &str) -> bool {
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn dotted_suffixes_are_denied() {
         assert!(is_redacted("query.parameters"));
-        assert!(is_redacted("turbolay.query.parameters"));
+        assert!(is_redacted("hydradb.query.parameters"));
         assert!(is_redacted("http.authorization"));
     }
 
@@ -200,7 +200,7 @@ mod tests {
     #[test]
     fn ordinary_fields_survive() {
         assert!(!is_redacted("cell_id"));
-        assert!(!is_redacted("turbolay.cell_id"));
+        assert!(!is_redacted("hydradb.cell_id"));
         assert!(!is_redacted("elapsed_ms"));
         assert!(!is_redacted("message"));
     }

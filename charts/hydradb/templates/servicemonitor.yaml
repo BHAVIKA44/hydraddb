@@ -2,9 +2,9 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "turbolay.fullname" . }}
+  name: {{ include "hydradb.fullname" . }}
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     {{- with .Values.serviceMonitor.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -14,7 +14,7 @@ spec:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
-      {{- include "turbolay.selectorLabels" . | nindent 6 }}
+      {{- include "hydradb.selectorLabels" . | nindent 6 }}
       graph.usecortex.io/metrics: "true"
   endpoints:
     - port: metrics

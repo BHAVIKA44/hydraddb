@@ -1,8 +1,8 @@
-{{- define "turbolay.name" -}}
+{{- define "hydradb.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "turbolay.fullname" -}}
+{{- define "hydradb.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -15,54 +15,54 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "turbolay.chart" -}}
+{{- define "hydradb.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "turbolay.labels" -}}
-helm.sh/chart: {{ include "turbolay.chart" . }}
-app.kubernetes.io/name: {{ include "turbolay.name" . }}
+{{- define "hydradb.labels" -}}
+helm.sh/chart: {{ include "hydradb.chart" . }}
+app.kubernetes.io/name: {{ include "hydradb.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/part-of: turbolay
+app.kubernetes.io/part-of: hydradb
 {{- end -}}
 
-{{- define "turbolay.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "turbolay.name" . }}
+{{- define "hydradb.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "hydradb.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
-{{- define "turbolay.componentLabels" -}}
-{{ include "turbolay.selectorLabels" .root }}
+{{- define "hydradb.componentLabels" -}}
+{{ include "hydradb.selectorLabels" .root }}
 app.kubernetes.io/component: {{ .component }}
 {{- end -}}
 
-{{- define "turbolay.nodeServiceAccountName" -}}
-{{- default (printf "%s-node" (include "turbolay.fullname" .)) .Values.node.serviceAccount.name -}}
+{{- define "hydradb.nodeServiceAccountName" -}}
+{{- default (printf "%s-node" (include "hydradb.fullname" .)) .Values.node.serviceAccount.name -}}
 {{- end -}}
 
-{{- define "turbolay.indexerServiceAccountName" -}}
-{{- default (printf "%s-indexer" (include "turbolay.fullname" .)) .Values.indexer.serviceAccount.name -}}
+{{- define "hydradb.indexerServiceAccountName" -}}
+{{- default (printf "%s-indexer" (include "hydradb.fullname" .)) .Values.indexer.serviceAccount.name -}}
 {{- end -}}
 
-{{- define "turbolay.authSecretName" -}}
+{{- define "hydradb.authSecretName" -}}
 {{- if .Values.auth.existingSecret -}}
 {{- .Values.auth.existingSecret -}}
 {{- else if .Values.auth.externalSecret.enabled -}}
-{{- default (printf "%s-client-auth" (include "turbolay.fullname" .)) .Values.auth.externalSecret.targetSecretName -}}
+{{- default (printf "%s-client-auth" (include "hydradb.fullname" .)) .Values.auth.externalSecret.targetSecretName -}}
 {{- else -}}
-{{- printf "%s-client-auth" (include "turbolay.fullname" .) -}}
+{{- printf "%s-client-auth" (include "hydradb.fullname" .) -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "turbolay.publicTlsSecretName" -}}
-{{- default (printf "%s-server-tls" (include "turbolay.fullname" .)) .Values.tls.public.secretName -}}
+{{- define "hydradb.publicTlsSecretName" -}}
+{{- default (printf "%s-server-tls" (include "hydradb.fullname" .)) .Values.tls.public.secretName -}}
 {{- end -}}
 
-{{- define "turbolay.nodeAddresses" -}}
+{{- define "hydradb.nodeAddresses" -}}
 {{- $addresses := list -}}
-{{- $fullname := include "turbolay.fullname" . -}}
+{{- $fullname := include "hydradb.fullname" . -}}
 {{- $namespace := .Release.Namespace -}}
 {{- range $index := until (int .Values.node.replicaCount) -}}
 {{- $addresses = append $addresses (printf "%s-node-%d=%s-node-%d.%s-node-headless.%s.svc.cluster.local:7687" $fullname $index $fullname $index $fullname $namespace) -}}
@@ -70,15 +70,15 @@ app.kubernetes.io/component: {{ .component }}
 {{- join "," $addresses -}}
 {{- end -}}
 
-{{- define "turbolay.advertisedBoltAddress" -}}
+{{- define "hydradb.advertisedBoltAddress" -}}
 {{- if .Values.service.advertisedBoltAddress -}}
 {{- .Values.service.advertisedBoltAddress -}}
 {{- else -}}
-{{- printf "%s-bolt.%s.svc.cluster.local:%v" (include "turbolay.fullname" .) .Release.Namespace .Values.service.bolt.port -}}
+{{- printf "%s-bolt.%s.svc.cluster.local:%v" (include "hydradb.fullname" .) .Release.Namespace .Values.service.bolt.port -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "turbolay.image" -}}
+{{- define "hydradb.image" -}}
 {{- if .Values.image.digest -}}
 {{- printf "%s@%s" .Values.image.repository .Values.image.digest -}}
 {{- else -}}
@@ -86,7 +86,7 @@ app.kubernetes.io/component: {{ .component }}
 {{- end -}}
 {{- end -}}
 
-{{- define "turbolay.decimalInteger" -}}
+{{- define "hydradb.decimalInteger" -}}
 {{- $kind := kindOf . -}}
 {{- if kindIs "string" . -}}
   {{- if not (regexMatch "^[0-9]+$" .) -}}
@@ -124,7 +124,7 @@ app.kubernetes.io/component: {{ .component }}
 {{- end -}}
 {{- end -}}
 
-{{- define "turbolay.objectStoreEndpointPort" -}}
+{{- define "hydradb.objectStoreEndpointPort" -}}
 {{- $endpoint := .Values.objectStore.aws.endpoint -}}
 {{- $parsed := urlParse $endpoint -}}
 {{- $scheme := get $parsed "scheme" -}}

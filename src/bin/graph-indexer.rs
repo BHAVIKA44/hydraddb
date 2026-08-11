@@ -25,7 +25,7 @@ use tokio::sync::{watch, Mutex as AsyncMutex};
 use tokio::task::JoinHandle;
 use tracing::field::Empty;
 use tracing::Instrument;
-use turbolay_telemetry::{semconv, ErrorClass, Outcome, ServiceIdentity, TelemetryConfig};
+use hydradb_telemetry::{semconv, ErrorClass, Outcome, ServiceIdentity, TelemetryConfig};
 
 type RuntimeResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -271,7 +271,7 @@ impl IndexerScopeCache {
             .scope_cache_close_failures
             .fetch_add(1, Ordering::Relaxed);
         tracing::warn!(
-            turbolay.scope = %scope,
+            hydradb.scope = %scope,
             reason,
             error = %error,
             "indexer scope cache could not close reader"
@@ -435,10 +435,10 @@ fn record_failure(span: &tracing::Span, failure: &IndexFailure) {
     span.in_scope(|| {
         tracing::warn!(
             stage = failure.stage,
-            turbolay.scope = failure.scope(),
-            turbolay.cell_id = failure.cell_id(),
-            turbolay.edge_type = failure.edge_type(),
-            turbolay.outcome = Outcome::Failed.as_str(),
+            hydradb.scope = failure.scope(),
+            hydradb.cell_id = failure.cell_id(),
+            hydradb.edge_type = failure.edge_type(),
+            hydradb.outcome = Outcome::Failed.as_str(),
             error.class = failure.class,
             error = %failure,
             "graph index step failed"
@@ -455,7 +455,7 @@ fn record_success(span: &tracing::Span) {
 /// entry that authorises it.
 ///
 /// `/metrics` has always spelled its labels bare (`cell_id`) and the registry
-/// spells its keys dotted (`turbolay.cell_id`); this is the one place in the
+/// spells its keys dotted (`hydradb.cell_id`); this is the one place in the
 /// indexer where the two vocabularies meet, so the pairing is written down
 /// rather than derived. The pairing also carries §1.3's rule: only a key the
 /// registry classified as a metric dimension has a [`semconv::MetricLabel`]
@@ -677,7 +677,7 @@ async fn main() -> RuntimeResult<()> {
     // what flushes batched spans and logs — without that flush the last seconds
     // before a pod restart are lost, which is exactly the window that matters.
     let telemetry =
-        turbolay_telemetry::init(TelemetryConfig::from_env(ServiceIdentity::GraphIndexer))?;
+        hydradb_telemetry::init(TelemetryConfig::from_env(ServiceIdentity::GraphIndexer))?;
 
     let data_path = env_value("GRAPH_DATA_PATH", "graph/data");
     let root_scope = graph_scope()?;
@@ -790,10 +790,10 @@ async fn main() -> RuntimeResult<()> {
         // The indexer has no client parent, so this is a trace root.
         let cycle_span = tracing::info_span!(
             "index.cycle",
-            turbolay.scope = %root_scope,
+            hydradb.scope = %root_scope,
             cycle = metrics.cycles.load(Ordering::Relaxed),
             failure_count = Empty,
-            turbolay.outcome = Empty,
+            hydradb.outcome = Empty,
             error.class = Empty,
         );
         let outcome = run_registered_scopes_cycle(
@@ -822,8 +822,8 @@ async fn main() -> RuntimeResult<()> {
                     // Only the transition, never the steady state.
                     cycle_span.in_scope(|| {
                         tracing::info!(
-                            turbolay.scope = %root_scope,
-                            turbolay.outcome = Outcome::Success.as_str(),
+                            hydradb.scope = %root_scope,
+                            hydradb.outcome = Outcome::Success.as_str(),
                             "graph indexer readiness regained"
                         );
                     });
@@ -848,9 +848,9 @@ async fn main() -> RuntimeResult<()> {
                     let first = failures.first();
                     cycle_span.in_scope(|| {
                         tracing::error!(
-                            turbolay.scope = first.map(IndexFailure::scope).unwrap_or_default(),
-                            turbolay.cell_id = first.map(IndexFailure::cell_id).unwrap_or_default(),
-                            turbolay.edge_type =
+                            hydradb.scope = first.map(IndexFailure::scope).unwrap_or_default(),
+                            hydradb.cell_id = first.map(IndexFailure::cell_id).unwrap_or_default(),
+                            hydradb.edge_type =
                                 first.map(IndexFailure::edge_type).unwrap_or_default(),
                             error.class = first.map(|failure| failure.class).unwrap_or_default(),
                             stage = first.map(|failure| failure.stage).unwrap_or_default(),
@@ -913,7 +913,7 @@ async fn run_registered_scopes_cycle(
     let discovery_span = tracing::info_span!(
         "index.scope_discovery",
         scope_count = Empty,
-        turbolay.outcome = Empty,
+        hydradb.outcome = Empty,
         error.class = Empty,
     );
     let mut scopes = match scope_directory
@@ -1019,17 +1019,17 @@ async fn run_registered_scope(
         let scope_name = scope.to_string();
         let scope_span = tracing::info_span!(
             "index.scope",
-            turbolay.scope = %scope_name,
-            turbolay.outcome = Empty,
+            hydradb.scope = %scope_name,
+            hydradb.outcome = Empty,
             error.class = Empty,
         );
 
         let has_data_span = tracing::info_span!(
             parent: &scope_span,
             "index.scope_has_data",
-            turbolay.scope = %scope_name,
+            hydradb.scope = %scope_name,
             has_data = Empty,
-            turbolay.outcome = Empty,
+            hydradb.outcome = Empty,
             error.class = Empty,
         );
         match scope_has_data(
@@ -1080,9 +1080,9 @@ async fn run_registered_scope(
         let open_span = tracing::info_span!(
             parent: &scope_span,
             "index.cluster_open",
-            turbolay.scope = %scope_name,
+            hydradb.scope = %scope_name,
             cell_count = scope_cache.cells.len(),
-            turbolay.outcome = Empty,
+            hydradb.outcome = Empty,
             error.class = Empty,
         );
         let cluster = match scope_cache
@@ -1277,10 +1277,10 @@ async fn run_index_cycle(
     for cell_id in cells {
         let cell_span = tracing::info_span!(
             "index.cell",
-            turbolay.scope = %scope,
-            turbolay.cell_id = %cell_id,
+            hydradb.scope = %scope,
+            hydradb.cell_id = %cell_id,
             dirty_edge_types = Empty,
-            turbolay.outcome = Empty,
+            hydradb.outcome = Empty,
             error.class = Empty,
         );
 
@@ -1299,10 +1299,10 @@ async fn run_index_cycle(
         let refresh_span = tracing::info_span!(
             parent: &cell_span,
             "index.refresh_sequence",
-            turbolay.scope = %scope,
-            turbolay.cell_id = %cell_id,
-            turbolay.base_sequence = Empty,
-            turbolay.outcome = Empty,
+            hydradb.scope = %scope,
+            hydradb.cell_id = %cell_id,
+            hydradb.base_sequence = Empty,
+            hydradb.outcome = Empty,
             error.class = Empty,
         );
         match shard
@@ -1332,10 +1332,10 @@ async fn run_index_cycle(
         let discover_span = tracing::info_span!(
             parent: &cell_span,
             "index.discover_dirty",
-            turbolay.scope = %scope,
-            turbolay.cell_id = %cell_id,
+            hydradb.scope = %scope,
+            hydradb.cell_id = %cell_id,
             dirty_count = Empty,
-            turbolay.outcome = Empty,
+            hydradb.outcome = Empty,
             error.class = Empty,
         );
         let dirty = match shard
@@ -1370,26 +1370,26 @@ async fn run_index_cycle(
             let edge_span = tracing::info_span!(
                 parent: &cell_span,
                 "index.edge_type",
-                turbolay.scope = %scope,
-                turbolay.cell_id = %cell_id,
-                turbolay.edge_type = %edge_type,
+                hydradb.scope = %scope,
+                hydradb.cell_id = %cell_id,
+                hydradb.edge_type = %edge_type,
                 dirty_sequence,
-                turbolay.generation = Empty,
-                turbolay.base_sequence = Empty,
-                turbolay.outcome = Empty,
+                hydradb.generation = Empty,
+                hydradb.base_sequence = Empty,
+                hydradb.outcome = Empty,
                 error.class = Empty,
             );
 
             let read_span = tracing::info_span!(
                 parent: &edge_span,
                 "index.read_current",
-                turbolay.scope = %scope,
-                turbolay.cell_id = %cell_id,
-                turbolay.edge_type = %edge_type,
+                hydradb.scope = %scope,
+                hydradb.cell_id = %cell_id,
+                hydradb.edge_type = %edge_type,
                 present = Empty,
-                turbolay.generation = Empty,
-                turbolay.base_sequence = Empty,
-                turbolay.outcome = Empty,
+                hydradb.generation = Empty,
+                hydradb.base_sequence = Empty,
+                hydradb.outcome = Empty,
                 error.class = Empty,
             );
             let current = match shard
@@ -1437,12 +1437,12 @@ async fn run_index_cycle(
                 edge_span.record(semconv::OUTCOME, Outcome::Skipped.as_str());
                 edge_span.in_scope(|| {
                     tracing::debug!(
-                        turbolay.scope = %scope,
-                        turbolay.cell_id = %cell_id,
-                        turbolay.edge_type = %edge_type,
-                        turbolay.generation = %generation.generation,
-                        turbolay.base_sequence = generation.base_sequence,
-                        turbolay.outcome = Outcome::Skipped.as_str(),
+                        hydradb.scope = %scope,
+                        hydradb.cell_id = %cell_id,
+                        hydradb.edge_type = %edge_type,
+                        hydradb.generation = %generation.generation,
+                        hydradb.base_sequence = generation.base_sequence,
+                        hydradb.outcome = Outcome::Skipped.as_str(),
                         dirty_sequence,
                         "graph index generation already current"
                     );
@@ -1453,14 +1453,14 @@ async fn run_index_cycle(
             let build_span = tracing::info_span!(
                 parent: &edge_span,
                 "artifact.build",
-                turbolay.scope = %scope,
-                turbolay.cell_id = %cell_id,
-                turbolay.edge_type = %edge_type,
-                turbolay.generation = Empty,
-                turbolay.base_sequence = Empty,
+                hydradb.scope = %scope,
+                hydradb.cell_id = %cell_id,
+                hydradb.edge_type = %edge_type,
+                hydradb.generation = Empty,
+                hydradb.base_sequence = Empty,
                 edge_count = Empty,
                 build_mode = Empty,
-                turbolay.outcome = Empty,
+                hydradb.outcome = Empty,
                 error.class = Empty,
             );
 
@@ -1557,26 +1557,26 @@ async fn run_index_cycle(
             let publish_span = tracing::info_span!(
                 parent: &edge_span,
                 "artifact.publish",
-                turbolay.scope = %scope,
-                turbolay.cell_id = %cell_id,
-                turbolay.edge_type = %edge_type,
-                turbolay.generation = %generation.generation,
-                turbolay.base_sequence = generation.base_sequence,
+                hydradb.scope = %scope,
+                hydradb.cell_id = %cell_id,
+                hydradb.edge_type = %edge_type,
+                hydradb.generation = %generation.generation,
+                hydradb.base_sequence = generation.base_sequence,
                 content_hash = %generation.generation,
                 checksum = generation.checksum,
                 edge_count = generation.edge_count,
                 last_wal_id = generation.last_wal_id,
                 pointer_advanced,
-                turbolay.outcome = publish_outcome.as_str(),
+                hydradb.outcome = publish_outcome.as_str(),
             );
             publish_span.in_scope(|| {
                 tracing::info!(
-                    turbolay.scope = %scope,
-                    turbolay.cell_id = %cell_id,
-                    turbolay.edge_type = %edge_type,
-                    turbolay.generation = %generation.generation,
-                    turbolay.base_sequence = generation.base_sequence,
-                    turbolay.outcome = publish_outcome.as_str(),
+                    hydradb.scope = %scope,
+                    hydradb.cell_id = %cell_id,
+                    hydradb.edge_type = %edge_type,
+                    hydradb.generation = %generation.generation,
+                    hydradb.base_sequence = generation.base_sequence,
+                    hydradb.outcome = publish_outcome.as_str(),
                     edge_count = generation.edge_count,
                     pointer_advanced,
                     "graph index generation published"
@@ -1590,14 +1590,14 @@ async fn run_index_cycle(
             let gc_span = tracing::info_span!(
                 parent: &edge_span,
                 "artifact.gc",
-                turbolay.scope = %scope,
-                turbolay.cell_id = %cell_id,
-                turbolay.edge_type = %edge_type,
-                turbolay.generation = %generation.generation,
-                turbolay.base_sequence = generation.base_sequence,
+                hydradb.scope = %scope,
+                hydradb.cell_id = %cell_id,
+                hydradb.edge_type = %edge_type,
+                hydradb.generation = %generation.generation,
+                hydradb.base_sequence = generation.base_sequence,
                 retain_previous,
                 deleted = Empty,
-                turbolay.outcome = Empty,
+                hydradb.outcome = Empty,
                 error.class = Empty,
             );
             match shard
@@ -1641,11 +1641,11 @@ async fn run_index_cycle(
             let xlog_gc_span = tracing::info_span!(
                 parent: &edge_span,
                 "artifact.xlog_gc",
-                turbolay.scope = %scope,
-                turbolay.cell_id = %cell_id,
-                turbolay.edge_type = %edge_type,
+                hydradb.scope = %scope,
+                hydradb.cell_id = %cell_id,
+                hydradb.edge_type = %edge_type,
                 deleted = Empty,
-                turbolay.outcome = Empty,
+                hydradb.outcome = Empty,
                 error.class = Empty,
             );
             match shard
@@ -2366,7 +2366,7 @@ mod tests {
             );
             assert_eq!(
                 label.key(),
-                format!("turbolay.{prometheus}"),
+                format!("hydradb.{prometheus}"),
                 "the Prometheus name and the registry key have drifted",
             );
         }

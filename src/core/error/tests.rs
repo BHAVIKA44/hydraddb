@@ -4,7 +4,7 @@ use super::*;
 /// [`GraphError::CLASSES`], so that the array and the vocabulary are two
 /// statements that can disagree instead of one that cannot be checked.
 ///
-/// Twelve and not thirteen: `turbolay_telemetry::ErrorClass` also has `Other`, and
+/// Twelve and not thirteen: `hydradb_telemetry::ErrorClass` also has `Other`, and
 /// nothing in this tree constructs it. There is no `other` arm here and there
 /// must not be one — the whole value of the taxonomy is that an unclassified
 /// variant is a build failure rather than a bucket nobody can act on.

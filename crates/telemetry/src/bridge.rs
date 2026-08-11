@@ -6,7 +6,7 @@
 //! operations, and the obvious move is to implement it here. That would be
 //! wrong: implementing a trait requires naming it, naming it requires
 //! depending on `slatedb-graph-kernel`, and this crate must not — it is the
-//! same arrow `turbolay-placement` keeps pointing away from the kernel, and
+//! same arrow `hydradb-placement` keeps pointing away from the kernel, and
 //! the reason `cargo test` never pulls `opentelemetry-*`.
 //!
 //! So neither side names the other. The kernel declares the trait, this module

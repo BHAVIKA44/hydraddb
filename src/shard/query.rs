@@ -26,7 +26,7 @@ where
     // apart on a single query. The span cannot follow the closure onto the
     // blocking thread, which is exactly why the wrapper is the right place for
     // it. `operation` is the rung of the sparse-kernel ladder that ran.
-    let span = tracing::info_span!("kernel.expand", turbolay.kernel = operation);
+    let span = tracing::info_span!("kernel.expand", hydradb.kernel = operation);
     let queued_at = std::time::Instant::now();
     tokio::task::spawn_blocking(move || {
         let queue_us = queued_at
@@ -578,11 +578,11 @@ impl GraphShard {
         level = "info",
         skip_all,
         fields(
-            turbolay.cell_id = %context.cell_id,
-            turbolay.read_epoch = tracing::field::Empty,
-            turbolay.query.rows_returned = tracing::field::Empty,
+            hydradb.cell_id = %context.cell_id,
+            hydradb.read_epoch = tracing::field::Empty,
+            hydradb.query.rows_returned = tracing::field::Empty,
             error.class = tracing::field::Empty,
-            turbolay.sampling.tail_keep = tracing::field::Empty,
+            hydradb.sampling.tail_keep = tracing::field::Empty,
         )
     )]
     async fn execute_parsed_opencypher_rows(
@@ -614,14 +614,14 @@ impl GraphShard {
             }
             .instrument(tracing::info_span!(
                 "storage.snapshot",
-                turbolay.cell_id = %context.cell_id,
+                hydradb.cell_id = %context.cell_id,
                 refreshed_reader = context.uses_refreshed_reader(),
             ))
             .await;
             match snapshot {
                 Ok(snapshot) => {
                     let read_epoch = snapshot.seq();
-                    tracing::Span::current().record("turbolay.read_epoch", read_epoch);
+                    tracing::Span::current().record("hydradb.read_epoch", read_epoch);
                     let context = context.with_validated_storage_read_epoch(read_epoch, read_epoch);
                     GraphStore::scope_snapshot(
                         snapshot,
@@ -646,15 +646,15 @@ impl GraphShard {
                 self.operation_metrics
                     .query_rows_returned
                     .fetch_add(result_set.rows.len() as u64, Ordering::Relaxed);
-                span.record("turbolay.query.rows_returned", result_set.rows.len() as u64);
+                span.record("hydradb.query.rows_returned", result_set.rows.len() as u64);
                 if let Some(read_epoch) = result_set.read_epoch {
-                    span.record("turbolay.read_epoch", read_epoch);
+                    span.record("hydradb.read_epoch", read_epoch);
                 }
             }
             Err(err) => {
                 self.operation_metrics.record_query_rows_failure(err);
                 span.record("error.class", err.class());
-                span.record("turbolay.sampling.tail_keep", "error");
+                span.record("hydradb.sampling.tail_keep", "error");
             }
         }
         result
@@ -5774,13 +5774,13 @@ impl GraphShard {
     ) -> Result<Option<MatrixArtifact>> {
         let span = tracing::info_span!(
             "artifact.lookup",
-            turbolay.cell_id = %cell_id,
-            turbolay.edge_type = %edge_type,
-            turbolay.read_epoch = read_epoch,
-            turbolay.base_sequence = tracing::field::Empty,
-            turbolay.outcome = tracing::field::Empty,
+            hydradb.cell_id = %cell_id,
+            hydradb.edge_type = %edge_type,
+            hydradb.read_epoch = read_epoch,
+            hydradb.base_sequence = tracing::field::Empty,
+            hydradb.outcome = tracing::field::Empty,
             error.class = tracing::field::Empty,
-            turbolay.sampling.tail_keep = tracing::field::Empty,
+            hydradb.sampling.tail_keep = tracing::field::Empty,
         );
         let artifact = self
             .latest_matrix_artifact(cell_id, edge_type, read_epoch)
@@ -5788,17 +5788,17 @@ impl GraphShard {
             .await;
         match &artifact {
             Ok(Some(artifact)) => {
-                span.record("turbolay.outcome", "hit");
-                span.record("turbolay.base_sequence", artifact.base_epoch);
+                span.record("hydradb.outcome", "hit");
+                span.record("hydradb.base_sequence", artifact.base_epoch);
             }
             // Absence is the interesting case: it means the read fell off the
             // compiled path and back onto a scan.
             Ok(None) => {
-                span.record("turbolay.outcome", "miss");
+                span.record("hydradb.outcome", "miss");
             }
             Err(err) => {
                 span.record("error.class", err.class());
-                span.record("turbolay.sampling.tail_keep", "error");
+                span.record("hydradb.sampling.tail_keep", "error");
             }
         }
         artifact
@@ -5853,13 +5853,13 @@ impl GraphShard {
                 // artifact was built from and what the read needs to see.
                 let tail_span = tracing::info_span!(
                     "storage.wal_tail",
-                    turbolay.cell_id = %cell_id,
-                    turbolay.edge_type = %edge_type,
-                    turbolay.read_epoch = read_epoch,
-                    turbolay.base_sequence = generation.base_sequence,
-                    turbolay.outcome = tracing::field::Empty,
+                    hydradb.cell_id = %cell_id,
+                    hydradb.edge_type = %edge_type,
+                    hydradb.read_epoch = read_epoch,
+                    hydradb.base_sequence = generation.base_sequence,
+                    hydradb.outcome = tracing::field::Empty,
                     error.class = tracing::field::Empty,
-                    turbolay.sampling.tail_keep = tracing::field::Empty,
+                    hydradb.sampling.tail_keep = tracing::field::Empty,
                 );
                 let tail = self
                     .topology_tail_since(&generation, storage_snapshot.as_ref(), read_epoch, budget)
@@ -5867,14 +5867,14 @@ impl GraphShard {
                     .await;
                 match &tail {
                     Ok(GraphTopologyTail::Complete(_)) => {
-                        tail_span.record("turbolay.outcome", "complete");
+                        tail_span.record("hydradb.outcome", "complete");
                     }
                     Ok(GraphTopologyTail::Unavailable) => {
-                        tail_span.record("turbolay.outcome", "unavailable");
+                        tail_span.record("hydradb.outcome", "unavailable");
                     }
                     Err(err) => {
                         tail_span.record("error.class", err.class());
-                        tail_span.record("turbolay.sampling.tail_keep", "error");
+                        tail_span.record("hydradb.sampling.tail_keep", "error");
                     }
                 }
                 match tail {

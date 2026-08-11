@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ include "turbolay.fullname" . }}-test-connection
+  name: {{ include "hydradb.fullname" . }}-test-connection
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     app.kubernetes.io/component: helm-test
   annotations:
     helm.sh/hook: test
@@ -19,9 +19,9 @@ spec:
         - /bin/sh
         - -ec
         - |
-          TOKEN="$(cat /var/run/secrets/turbolay-auth/{{ .Values.auth.secretKey }})"
+          TOKEN="$(cat /var/run/secrets/hydradb-auth/{{ .Values.auth.secretKey }})"
           {{- if .Values.tls.public.trustBundle.enabled }}
-          curl --fail --silent --show-error --cacert /var/run/secrets/turbolay-ca/ca.crt \
+          curl --fail --silent --show-error --cacert /var/run/secrets/hydradb-ca/ca.crt \
           {{- else }}
           curl --fail --silent --show-error \
           {{- end }}
@@ -29,24 +29,24 @@ spec:
             -H "Content-Type: application/json" \
             -H "x-graph-namespace: {{ .Values.graph.namespace }}" \
             --data '{"cell_id":"{{ first .Values.graph.cells }}","query":"MATCH (n) RETURN count(*)"}' \
-            {{ ternary "https" "http" .Values.tls.public.enabled }}://{{ include "turbolay.fullname" . }}-https:{{ .Values.service.https.port }}/v1/graphs/{{ .Values.graph.graphId }}/query
+            {{ ternary "https" "http" .Values.tls.public.enabled }}://{{ include "hydradb.fullname" . }}-https:{{ .Values.service.https.port }}/v1/graphs/{{ .Values.graph.graphId }}/query
       volumeMounts:
         - name: auth
-          mountPath: /var/run/secrets/turbolay-auth
+          mountPath: /var/run/secrets/hydradb-auth
           readOnly: true
         {{- if .Values.tls.public.trustBundle.enabled }}
         - name: ca
-          mountPath: /var/run/secrets/turbolay-ca
+          mountPath: /var/run/secrets/hydradb-ca
           readOnly: true
         {{- end }}
   volumes:
     - name: auth
       secret:
-        secretName: {{ include "turbolay.authSecretName" . }}
+        secretName: {{ include "hydradb.authSecretName" . }}
     {{- if .Values.tls.public.trustBundle.enabled }}
     - name: ca
       secret:
-        secretName: {{ default (include "turbolay.publicTlsSecretName" .) .Values.tls.public.trustBundle.sourceSecretName }}
+        secretName: {{ default (include "hydradb.publicTlsSecretName" .) .Values.tls.public.trustBundle.sourceSecretName }}
         items:
           - key: {{ .Values.tls.public.trustBundle.sourceSecretKey }}
             path: ca.crt

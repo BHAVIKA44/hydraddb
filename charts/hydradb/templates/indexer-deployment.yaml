@@ -2,9 +2,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "turbolay.fullname" . }}-indexer
+  name: {{ include "hydradb.fullname" . }}-indexer
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     app.kubernetes.io/component: indexer
 spec:
   replicas: {{ .Values.indexer.replicaCount }}
@@ -12,11 +12,11 @@ spec:
     type: RollingUpdate
   selector:
     matchLabels:
-      {{- include "turbolay.componentLabels" (dict "root" . "component" "indexer") | nindent 6 }}
+      {{- include "hydradb.componentLabels" (dict "root" . "component" "indexer") | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "turbolay.componentLabels" (dict "root" . "component" "indexer") | nindent 8 }}
+        {{- include "hydradb.componentLabels" (dict "root" . "component" "indexer") | nindent 8 }}
         {{- with .Values.indexer.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -26,7 +26,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      serviceAccountName: {{ include "turbolay.indexerServiceAccountName" . }}
+      serviceAccountName: {{ include "hydradb.indexerServiceAccountName" . }}
       automountServiceAccountToken: true
       terminationGracePeriodSeconds: {{ .Values.indexer.terminationGracePeriodSeconds }}
       {{- with .Values.image.pullSecrets }}
@@ -63,7 +63,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
                 labelSelector:
                   matchLabels:
-                    {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 20 }}
+                    {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 20 }}
       {{- end }}
       {{- with .Values.indexer.topologySpreadConstraints }}
       topologySpreadConstraints:
@@ -71,12 +71,12 @@ spec:
       {{- end }}
       containers:
         - name: graph-indexer
-          image: {{ include "turbolay.image" . }}
+          image: {{ include "hydradb.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/usr/local/bin/graph-indexer"]
           envFrom:
             - configMapRef:
-                name: {{ include "turbolay.fullname" . }}-runtime
+                name: {{ include "hydradb.fullname" . }}-runtime
           {{- with .Values.indexer.extraEnv }}
           env:
             {{- toYaml . | nindent 12 }}

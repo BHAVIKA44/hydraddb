@@ -14,7 +14,7 @@ fn record_error_class(error: &GraphError) {
 /// One `shard.write_txn` span per mutation, spanning the whole retry loop.
 ///
 /// The span sits on the retry loop rather than on the individual `*_txn` call
-/// the plan's tree names, because `turbolay.writer.retries` only exists in the
+/// the plan's tree names, because `hydradb.writer.retries` only exists in the
 /// loop: a span per attempt would be a span *per retry*, with no single span
 /// carrying the count and nothing for a dashboard to group on.
 /// `GraphOperationalMetricsSnapshot` already counts `write_attempts`,
@@ -23,14 +23,14 @@ fn record_error_class(error: &GraphError) {
 fn write_txn_span(cell_id: &str, edge_type: Option<&str>) -> tracing::Span {
     let span = tracing::info_span!(
         "shard.write_txn",
-        turbolay.cell_id = %cell_id,
-        turbolay.edge_type = tracing::field::Empty,
-        turbolay.commit_epoch = tracing::field::Empty,
-        turbolay.writer.retries = tracing::field::Empty,
+        hydradb.cell_id = %cell_id,
+        hydradb.edge_type = tracing::field::Empty,
+        hydradb.commit_epoch = tracing::field::Empty,
+        hydradb.writer.retries = tracing::field::Empty,
         error.class = tracing::field::Empty,
     );
     if let Some(edge_type) = edge_type {
-        span.record("turbolay.edge_type", edge_type);
+        span.record("hydradb.edge_type", edge_type);
     }
     span
 }
@@ -48,7 +48,7 @@ fn common_edge_type(mutations: &[EdgeMutation]) -> Option<&str> {
         .then_some(first)
 }
 
-/// Records `turbolay.writer.retries` on `shard.write_txn` however the retry
+/// Records `hydradb.writer.retries` on `shard.write_txn` however the retry
 /// loop exits, so no early return can forget it.
 struct WriteRetryCount {
     span: tracing::Span,
@@ -71,7 +71,7 @@ impl WriteRetryCount {
 
 impl Drop for WriteRetryCount {
     fn drop(&mut self) {
-        self.span.record("turbolay.writer.retries", self.retries);
+        self.span.record("hydradb.writer.retries", self.retries);
     }
 }
 
@@ -90,9 +90,9 @@ async fn commit_txn_traced(
 ) -> Result<()> {
     let span = tracing::info_span!(
         "storage.commit",
-        turbolay.cell_id = %cell_id,
-        turbolay.edge_type = %edge_type,
-        turbolay.commit_epoch = commit_epoch,
+        hydradb.cell_id = %cell_id,
+        hydradb.edge_type = %edge_type,
+        hydradb.commit_epoch = commit_epoch,
         error.class = tracing::field::Empty,
     );
     async {
@@ -621,7 +621,7 @@ impl GraphShard {
                         self.operation_metrics
                             .write_commits
                             .fetch_add(1, Ordering::Relaxed);
-                        tracing::Span::current().record("turbolay.commit_epoch", result.epoch);
+                        tracing::Span::current().record("hydradb.commit_epoch", result.epoch);
                         return Ok(result);
                     }
                     result => return result.inspect_err(record_error_class),
@@ -1333,7 +1333,7 @@ impl GraphShard {
                         self.operation_metrics
                             .write_commits
                             .fetch_add(1, Ordering::Relaxed);
-                        tracing::Span::current().record("turbolay.commit_epoch", result.end_epoch);
+                        tracing::Span::current().record("hydradb.commit_epoch", result.end_epoch);
                         return Ok(result);
                     }
                     result => return result.inspect_err(record_error_class),
@@ -2588,7 +2588,7 @@ impl GraphShard {
                         self.operation_metrics
                             .write_commits
                             .fetch_add(1, Ordering::Relaxed);
-                        tracing::Span::current().record("turbolay.commit_epoch", result.epoch);
+                        tracing::Span::current().record("hydradb.commit_epoch", result.epoch);
                         return Ok(result);
                     }
                     result => return result.inspect_err(record_error_class),
@@ -3121,7 +3121,7 @@ impl GraphShard {
                         self.operation_metrics
                             .write_commits
                             .fetch_add(1, Ordering::Relaxed);
-                        tracing::Span::current().record("turbolay.commit_epoch", result.end_epoch);
+                        tracing::Span::current().record("hydradb.commit_epoch", result.end_epoch);
                         return Ok(result);
                     }
                     result => return result.inspect_err(record_error_class),
@@ -3473,7 +3473,7 @@ impl GraphShard {
                         self.operation_metrics
                             .write_commits
                             .fetch_add(1, Ordering::Relaxed);
-                        tracing::Span::current().record("turbolay.commit_epoch", result.epoch);
+                        tracing::Span::current().record("hydradb.commit_epoch", result.epoch);
                         return Ok(result);
                     }
                     result => return result.inspect_err(record_error_class),
@@ -4052,7 +4052,7 @@ impl GraphShard {
                         self.operation_metrics
                             .write_commits
                             .fetch_add(1, Ordering::Relaxed);
-                        tracing::Span::current().record("turbolay.commit_epoch", result.end_epoch);
+                        tracing::Span::current().record("hydradb.commit_epoch", result.end_epoch);
                         return Ok(result);
                     }
                     result => return result.inspect_err(record_error_class),
@@ -5580,10 +5580,10 @@ impl GraphShard {
     ) -> Result<()> {
         let span = tracing::info_span!(
             "write.index_update",
-            turbolay.cell_id = %cell_id,
-            turbolay.edge_type = %edge_type,
-            turbolay.commit_epoch = epoch,
-            turbolay.xlog_changes = changes.len() as u64,
+            hydradb.cell_id = %cell_id,
+            hydradb.edge_type = %edge_type,
+            hydradb.commit_epoch = epoch,
+            hydradb.xlog_changes = changes.len() as u64,
         );
         span.in_scope(|| {
             txn.put(

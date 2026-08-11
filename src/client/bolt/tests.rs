@@ -36,7 +36,7 @@ fn bolt_consistency_metadata_accepts_only_causal_or_strong() {
         bolt_read_consistency(&BoltDict::from([(
             "tx_metadata".to_string(),
             BoltValue::Dict(BoltDict::from([(
-                "turbolay.consistency".to_string(),
+                "hydradb.consistency".to_string(),
                 BoltValue::String("causal".to_string()),
             )])),
         )]))
@@ -1707,7 +1707,7 @@ async fn object_store_routing_names_the_rendezvous_owner_for_writes() {
     assert_eq!(routing_role(&table, "ROUTE"), every_address);
 
     let scope = GraphScope::default().to_string();
-    let owner = turbolay_placement::hash::owner(&scope, "cell-a", &["node-a", "node-b", "node-c"])
+    let owner = hydradb_placement::hash::owner(&scope, "cell-a", &["node-a", "node-b", "node-c"])
         .expect("a non-empty fleet has an owner");
     let owner_address = addresses
         .iter()
@@ -1730,7 +1730,7 @@ async fn object_store_routing_prefers_the_durable_lease_owner() {
     let cell = (0..64)
         .map(|index| format!("cell-{index}"))
         .find(|cell| {
-            turbolay_placement::hash::owner(&scope.to_string(), cell, &["node-a", "node-b"])
+            hydradb_placement::hash::owner(&scope.to_string(), cell, &["node-a", "node-b"])
                 == Some("node-a")
         })
         .unwrap();
@@ -1780,7 +1780,7 @@ async fn object_store_routing_resolves_the_writer_per_cell() {
     let mut writers = std::collections::BTreeSet::new();
     for index in 0..16 {
         let cell_id = format!("cell-{index}");
-        let owner = turbolay_placement::hash::owner(&scope, &cell_id, &fleet).unwrap();
+        let owner = hydradb_placement::hash::owner(&scope, &cell_id, &fleet).unwrap();
         let expected = addresses
             .iter()
             .find(|(node_id, _)| node_id == owner)
@@ -1818,7 +1818,7 @@ async fn object_store_routing_advertises_only_the_live_fleet() {
     assert_eq!(routing_role(&table, "ROUTE"), live);
 
     let scope = GraphScope::default().to_string();
-    let owner = turbolay_placement::hash::owner(&scope, "cell-a", &["node-a", "node-b"]).unwrap();
+    let owner = hydradb_placement::hash::owner(&scope, "cell-a", &["node-a", "node-b"]).unwrap();
     assert!(
         routing_role(&table, "WRITE")
             == vec![if owner == "node-a" {
@@ -1910,7 +1910,7 @@ async fn object_store_routing_reports_a_missing_owner_address_as_a_config_error(
     let cell = (0..64)
         .map(|n| format!("cell-{n}"))
         .find(|cell| {
-            turbolay_placement::hash::owner(&scope.to_string(), cell, &["node-a", "node-b"])
+            hydradb_placement::hash::owner(&scope.to_string(), cell, &["node-a", "node-b"])
                 == Some("node-b")
         })
         .expect("some cell hashes to node-b");

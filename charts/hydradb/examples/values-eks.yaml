@@ -4,7 +4,7 @@ objectStore:
     region: us-east-1
 
 image:
-  repository: 525753068359.dkr.ecr.us-east-1.amazonaws.com/staging/turbolay
+  repository: 525753068359.dkr.ecr.us-east-1.amazonaws.com/staging/hydradb
   tag: "0.1.0"
 
 auth:
@@ -34,7 +34,7 @@ tls:
 node:
   serviceAccount:
     annotations:
-      eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/turbolay-data-s3
+      eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/hydradb-data-s3
   cache:
     type: persistentVolume
     memoryLimitBytes: 34359738368

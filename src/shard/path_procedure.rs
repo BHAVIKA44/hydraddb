@@ -198,12 +198,12 @@ impl GraphShard {
         let started = std::time::Instant::now();
         let span = tracing::info_span!(
             "query.execute",
-            turbolay.cell_id = %context.cell_id,
-            turbolay.query.access_path = "NativePathProcedure",
-            turbolay.read_epoch = tracing::field::Empty,
-            turbolay.query.rows_returned = tracing::field::Empty,
+            hydradb.cell_id = %context.cell_id,
+            hydradb.query.access_path = "NativePathProcedure",
+            hydradb.read_epoch = tracing::field::Empty,
+            hydradb.query.rows_returned = tracing::field::Empty,
             error.class = tracing::field::Empty,
-            turbolay.sampling.tail_keep = tracing::field::Empty,
+            hydradb.sampling.tail_keep = tracing::field::Empty,
         );
         let result = self
             .execute_native_path_rows_snapshot(context, procedure)
@@ -220,15 +220,15 @@ impl GraphShard {
                 self.operation_metrics
                     .query_rows_returned
                     .fetch_add(result_set.rows.len() as u64, Ordering::Relaxed);
-                span.record("turbolay.query.rows_returned", result_set.rows.len() as u64);
+                span.record("hydradb.query.rows_returned", result_set.rows.len() as u64);
                 if let Some(read_epoch) = result_set.read_epoch {
-                    span.record("turbolay.read_epoch", read_epoch);
+                    span.record("hydradb.read_epoch", read_epoch);
                 }
             }
             Err(error) => {
                 self.operation_metrics.record_query_rows_failure(error);
                 span.record("error.class", error.class());
-                span.record("turbolay.sampling.tail_keep", "error");
+                span.record("hydradb.sampling.tail_keep", "error");
             }
         }
         result

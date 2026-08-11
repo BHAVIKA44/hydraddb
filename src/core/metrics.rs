@@ -28,7 +28,7 @@ pub(crate) fn load_class_counters(counters: &ErrorClassCounters) -> [u64; GraphE
 ///
 /// Generates `counter_fields()`, `histogram_fields()` and
 /// `class_counter_fields()` on `$ty`. The key is the identifier and nothing
-/// else: a Prometheus `graph_*` name and an OTel `db.*`/`turbolay.*` name are
+/// else: a Prometheus `graph_*` name and an OTel `db.*`/`hydradb.*` name are
 /// exposition vocabulary, and neither may appear in this crate. The binaries
 /// hold the name tables, which is also where the test that the two exports
 /// cannot disagree about a name belongs.

@@ -150,7 +150,7 @@ impl BoltRoutingTableProvider for ObjectStoreBoltRoutingTableProvider {
         let ownership = match owner.as_deref() {
             Some(owner) if owner == self.placement.local_node_id() => "local",
             Some(_) => "remote",
-            None if matches!(view.state(), turbolay_placement::liveness::ViewState::Shed) => {
+            None if matches!(view.state(), hydradb_placement::liveness::ViewState::Shed) => {
                 "unknown"
             }
             None => "unowned",
@@ -159,13 +159,13 @@ impl BoltRoutingTableProvider for ObjectStoreBoltRoutingTableProvider {
             "bolt.route",
             db.system.name = "neo4j",
             db.namespace = %database,
-            turbolay.scope = %scope,
-            turbolay.cell_id = %target.cell_id,
-            turbolay.node_id = %self.placement.local_node_id(),
-            turbolay.placement.state = view.state().as_str(),
-            turbolay.placement.live_nodes = view.nodes().len(),
-            turbolay.placement.ownership = ownership,
-            turbolay.writer.lease_generation = lease_owner
+            hydradb.scope = %scope,
+            hydradb.cell_id = %target.cell_id,
+            hydradb.node_id = %self.placement.local_node_id(),
+            hydradb.placement.state = view.state().as_str(),
+            hydradb.placement.live_nodes = view.nodes().len(),
+            hydradb.placement.ownership = ownership,
+            hydradb.writer.lease_generation = lease_owner
                 .as_ref()
                 .map_or(0, |owner| owner.generation),
             error.class = tracing::field::Empty,

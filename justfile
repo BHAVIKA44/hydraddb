@@ -90,7 +90,7 @@ check:
 
 # The widest compile surface in one line, so a feature that only *this* recipe
 # reaches — the root package's `otlp` is reached by nothing else in `ci`, since
-# test-telemetry enables the *crate's* otlp under `-p turbolay-telemetry` and
+# test-telemetry enables the *crate's* otlp under `-p hydradb-telemetry` and
 # never the root switch the binaries' cfg arms read — cannot rot unnoticed.
 # `--all-features` rather than an enumerated list on purpose: an enumerated list
 # silently stops covering the next feature added to Cargo.toml.
@@ -205,8 +205,8 @@ test-node-otlp:
 # workspace member needs its own explicit `-p` line or it is never built.
 # Lint and test the placement crate.
 test-placement:
-    cargo clippy --locked --all-targets -p turbolay-placement -- -D warnings
-    cargo test --locked -p turbolay-placement
+    cargo clippy --locked --all-targets -p hydradb-placement -- -D warnings
+    cargo test --locked -p hydradb-placement
 
 # The telemetry crate's OTLP-only modules — the sampler, the exporter wiring and
 # the log bridge — are behind an off-by-default feature, so neither `just check`
@@ -214,8 +214,8 @@ test-placement:
 # compiled.
 # Lint and test the telemetry crate with OTLP export enabled.
 test-telemetry:
-    cargo clippy --locked --all-targets -p turbolay-telemetry --features otlp -- -D warnings
-    cargo test --locked -p turbolay-telemetry --features otlp
+    cargo clippy --locked --all-targets -p hydradb-telemetry --features otlp -- -D warnings
+    cargo test --locked -p hydradb-telemetry --features otlp
 
 # Verify native libraries required by Rust FFI crates.
 native-check:

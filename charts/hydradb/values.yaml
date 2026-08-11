@@ -2,7 +2,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 image:
-  repository: 525753068359.dkr.ecr.us-east-1.amazonaws.com/staging/turbolay
+  repository: 525753068359.dkr.ecr.us-east-1.amazonaws.com/staging/hydradb
   tag: ""
   digest: ""
   pullPolicy: IfNotPresent

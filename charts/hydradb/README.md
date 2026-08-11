@@ -1,6 +1,6 @@
-# Turbolay Helm Chart
+# HydraDB Helm Chart
 
-This chart deploys Turbolay query nodes and independent graph-indexer workers.
+This chart deploys HydraDB query nodes and independent graph-indexer workers.
 SlateDB stores durable state in object storage and fences stale writers; every
 Pod and cache volume is disposable.
 
@@ -17,8 +17,8 @@ Pod and cache volume is disposable.
 Create a production values file from `examples/values-eks.yaml`, replace every account, DNS, issuer, bucket, and image value, then run:
 
 ```bash
-helm upgrade --install turbolay charts/turbolay \
-  --namespace turbolay \
+helm upgrade --install hydradb charts/hydradb \
+  --namespace hydradb \
   --create-namespace \
   --values values-production.yaml \
   --atomic \
@@ -28,8 +28,8 @@ helm upgrade --install turbolay charts/turbolay \
 Verify the deployment:
 
 ```bash
-kubectl -n turbolay get pods,deployments,statefulsets,services
-helm test turbolay -n turbolay
+kubectl -n hydradb get pods,deployments,statefulsets,services
+helm test hydradb -n hydradb
 ```
 
 Query nodes serve Bolt/HTTPS reads and canonical writes. Indexer workers have no
@@ -43,7 +43,7 @@ capacity and `indexer.replicaCount` for background indexing capacity.
 
 `.github/workflows/container.yml` builds the production Dockerfile on pull
 requests and publishes `linux/amd64` images to the regional
-`staging/turbolay` Amazon ECR repository after a push to `main`. It follows the
+`staging/hydradb` Amazon ECR repository after a push to `main`. It follows the
 HydraDB deployment convention by publishing the full commit SHA and `latest`
 tags through the shared AWS role. Every published image also has an OCI digest,
 an SBOM, and build-provenance attestation. Argo CD is pinned to the digest and
@@ -60,10 +60,10 @@ repository, updates the staging tag and digest, validates the Helm release, and
 pushes the deployment commit to `main`. This is the same promotion path used by
 HydraDB application and ingestion services.
 
-Set the `TURBOLAY_STAGING_DEPLOY_ENABLED` repository variable to `true` only
+Set the `HYDRADB_STAGING_DEPLOY_ENABLED` repository variable to `true` only
 after the staging ECR repository, S3 roles, certificates, and client-auth Secret
 exist. The workflow then uses the shared `ARGOCD_AUTH_TOKEN` to refresh, sync,
-and wait for the `turbolay-staging` application to become healthy.
+and wait for the `hydradb-staging` application to become healthy.
 
 EKS nodes pull the private image through their IAM node role. Attach
 `AmazonEC2ContainerRegistryPullOnly` or equivalent repository-scoped pull
@@ -76,7 +76,7 @@ Public TLS is enabled by default. With cert-manager disabled, provide the releas
 When `tls.public.trustBundle.enabled=true`, install trust-manager first and
 configure its trust source namespace to this release namespace. The chart then
 publishes only the public CA certificate into explicitly selected client
-namespaces; private keys never leave the Turbolay namespace.
+namespaces; private keys never leave the HydraDB namespace.
 
 Each release serves one deployment root containing dynamically selected tenant
 and subtenant graph scopes. Clients select a scope with the versioned Bolt

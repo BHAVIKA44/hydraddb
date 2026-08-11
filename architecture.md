@@ -1,12 +1,12 @@
-# Turbolay Architecture
+# HydraDB Architecture
 
-Turbolay is a Rust graph database built on SlateDB. S3-compatible object
+HydraDB is a Rust graph database built on SlateDB. S3-compatible object
 storage is the durable source of truth. Query and indexing processes are
 stateless with respect to durable graph state; their memory and SSD/NVMe data
 are disposable caches.
 
 SlateDB owns writer fencing, commit ordering, WAL durability, storage
-snapshots, compaction, and object-store coordination. Turbolay owns the graph
+snapshots, compaction, and object-store coordination. HydraDB owns the graph
 model, canonical graph records, query planning, OpenCypher execution,
 content-addressed graph indexes, GraphBLAS traversal, public protocols, and
 operational limits.
@@ -176,7 +176,7 @@ sparse kernel.
 
 ## Read Consistency And Index Overlay
 
-Turbolay exposes two read-consistency modes.
+HydraDB exposes two read-consistency modes.
 
 ```mermaid
 flowchart TB
@@ -414,7 +414,7 @@ SlateDB's writer epoch and WAL barrier remain the final split-writer protection.
 | Preferred writer | Bolt routing hint only |
 | Memory and NVMe state | Disposable performance cache only |
 
-In compact form, Turbolay is:
+In compact form, HydraDB is:
 
 ```text
 stateless query compute

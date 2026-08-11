@@ -1068,17 +1068,17 @@ impl RowQueryPlanSummary {
     fn record(&self, span: &tracing::Span, cell_id: &str, elapsed: std::time::Duration) {
         let access_paths = self.access_paths();
         let optimizer_passes = self.optimizer_passes();
-        span.record("turbolay.query.access_path", access_paths.as_str());
-        span.record("turbolay.query.optimizer_passes", optimizer_passes.as_str());
-        span.record("turbolay.query.rows_estimated", self.rows_estimated);
-        span.record("turbolay.query.full_scan", self.full_scan);
+        span.record("hydradb.query.access_path", access_paths.as_str());
+        span.record("hydradb.query.optimizer_passes", optimizer_passes.as_str());
+        span.record("hydradb.query.rows_estimated", self.rows_estimated);
+        span.record("hydradb.query.full_scan", self.full_scan);
         if self.full_scan {
             // Not a head-sampling decision and cannot be made into one: the
             // verdict does not exist until the planner has run, and `query.plan`
             // is a child of `client.query`, whose fate was settled when the
             // request arrived. This marks the trace for the collector's tail
-            // sampler — see `turbolay_telemetry::sampling`.
-            span.record("turbolay.sampling.tail_keep", "full_scan");
+            // sampler — see `hydradb_telemetry::sampling`.
+            span.record("hydradb.sampling.tail_keep", "full_scan");
         }
 
         let elapsed_ms = elapsed.as_millis() as u64;
@@ -1087,11 +1087,11 @@ impl RowQueryPlanSummary {
             return;
         }
         tracing::warn!(
-            turbolay.cell_id = %cell_id,
-            turbolay.query.access_path = %access_paths,
-            turbolay.query.optimizer_passes = %optimizer_passes,
-            turbolay.query.rows_estimated = self.rows_estimated,
-            turbolay.query.full_scan = self.full_scan,
+            hydradb.cell_id = %cell_id,
+            hydradb.query.access_path = %access_paths,
+            hydradb.query.optimizer_passes = %optimizer_passes,
+            hydradb.query.rows_estimated = self.rows_estimated,
+            hydradb.query.full_scan = self.full_scan,
             planning_elapsed_ms = elapsed_ms,
             reason = if self.full_scan { "full_scan" } else { "slow" },
             "query plan warrants attention"
@@ -1163,7 +1163,7 @@ fn optimizer_pass_label(pass: &RowQueryOptimizerPass) -> &'static str {
 #[cfg(feature = "opencypher")]
 fn record_plan_error(span: &tracing::Span, err: &GraphError) {
     span.record("error.class", err.class());
-    span.record("turbolay.sampling.tail_keep", "error");
+    span.record("hydradb.sampling.tail_keep", "error");
 }
 
 /// The `query.plan` span, with every recorded field declared empty up front —
@@ -1172,13 +1172,13 @@ fn record_plan_error(span: &tracing::Span, err: &GraphError) {
 fn query_plan_span(cell_id: &str, read_epoch: StorageSequence) -> tracing::Span {
     tracing::info_span!(
         "query.plan",
-        turbolay.cell_id = %cell_id,
-        turbolay.read_epoch = read_epoch,
-        turbolay.query.access_path = tracing::field::Empty,
-        turbolay.query.optimizer_passes = tracing::field::Empty,
-        turbolay.query.rows_estimated = tracing::field::Empty,
-        turbolay.query.full_scan = tracing::field::Empty,
-        turbolay.sampling.tail_keep = tracing::field::Empty,
+        hydradb.cell_id = %cell_id,
+        hydradb.read_epoch = read_epoch,
+        hydradb.query.access_path = tracing::field::Empty,
+        hydradb.query.optimizer_passes = tracing::field::Empty,
+        hydradb.query.rows_estimated = tracing::field::Empty,
+        hydradb.query.full_scan = tracing::field::Empty,
+        hydradb.sampling.tail_keep = tracing::field::Empty,
         error.class = tracing::field::Empty,
     )
 }
@@ -1290,7 +1290,7 @@ mod tests {
     /// order production uses: the span is created with the field empty, entered,
     /// and only then filled in. That ordering is precisely why the head sampler
     /// cannot act on it — it decided when the span started — so recording
-    /// `turbolay.sampling.force` here would be a silent no-op dressed up as a
+    /// `hydradb.sampling.force` here would be a silent no-op dressed up as a
     /// guarantee. The marker the collector's tail sampler reads is the one that
     /// can still change the outcome, and it is the one that has to be here.
     #[test]
@@ -1315,13 +1315,13 @@ mod tests {
         assert!(
             recorded
                 .iter()
-                .any(|(name, value)| name == "turbolay.sampling.tail_keep" && value == "full_scan"),
+                .any(|(name, value)| name == "hydradb.sampling.tail_keep" && value == "full_scan"),
             "the full-scan alarm did not mark the trace for the tail sampler: {recorded:?}"
         );
         assert!(
             !recorded
                 .iter()
-                .any(|(name, _)| name == "turbolay.sampling.force"),
+                .any(|(name, _)| name == "hydradb.sampling.force"),
             "the head-sampling key was recorded after the span started, where \
              it can never be read: {recorded:?}"
         );

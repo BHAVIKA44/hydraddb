@@ -2,7 +2,7 @@
   "apiVersion": "dashboard.grafana.app/v2beta1",
   "kind": "Dashboard",
   "metadata": {
-    "name": "turbolay-query-engine-code",
+    "name": "hydradb-query-engine-code",
     "namespace": "default",
     "uid": "YziqDXMrACLmTMDTEv97mFDqBQ8yF8DyXi0KyyZ4XCoX",
     "resourceVersion": "1",
@@ -16,7 +16,7 @@
       "grafana.app/managedBy": "classic-file-provisioning",
       "grafana.app/managerId": "sidecarProvider",
       "grafana.app/sourceChecksum": "87e2e1a2e2e36d606e3a4d6d761b8427",
-      "grafana.app/sourcePath": "turbolay-query-engine.json",
+      "grafana.app/sourcePath": "hydradb-query-engine.json",
       "grafana.app/sourceTimestamp": "1786014177",
       "grafana.app/updatedBy": "provisioning:",
       "grafana.app/updatedTimestamp": "2026-08-06T11:02:57Z"
@@ -45,7 +45,7 @@
       }
     ],
     "cursorSync": "Off",
-    "description": "Query planner and row-execution view for turbolay. Mixed Prometheus + ClickHouse: the plan fields live only on the 'query plan warrants attention' warning line, so ClickHouse supplies the numerator and Prometheus the denominator for every ratio. Only graph_client_operation_*_duration_seconds and graph_query_rows_duration_microseconds are histograms; every other graph_*_microseconds metric is a counter of summed duration and yields averages only.",
+    "description": "Query planner and row-execution view for hydradb. Mixed Prometheus + ClickHouse: the plan fields live only on the 'query plan warrants attention' warning line, so ClickHouse supplies the numerator and Prometheus the denominator for every ratio. Only graph_client_operation_*_duration_seconds and graph_query_rows_duration_microseconds are histograms; every other graph_*_microseconds metric is a counter of summed duration and yields averages only.",
     "editable": true,
     "elements": {
       "panel-10": {
@@ -69,7 +69,7 @@
                         "editorType": "sql",
                         "format": 0,
                         "queryType": "sql",
-                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       attributes['turbolay.query.access_path'] AS access_path,\n       count() / $__interval_s AS warnings\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY time, access_path\nORDER BY time"
+                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       attributes['hydradb.query.access_path'] AS access_path,\n       count() / $__interval_s AS warnings\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY time, access_path\nORDER BY time"
                       },
                       "version": "v0"
                     },
@@ -81,7 +81,7 @@
               "transformations": []
             }
           },
-          "description": "Grouped by `turbolay.query.access_path`. A single series is a real finding, not a broken panel — this is the panel that shows the shape changing.",
+          "description": "Grouped by `hydradb.query.access_path`. A single series is a real finding, not a broken panel — this is the panel that shows the shape changing.",
           "id": 10,
           "links": [],
           "title": "Access path distribution",
@@ -198,7 +198,7 @@
                         "meta": {},
                         "pluginVersion": "4.18.0",
                         "queryType": "timeseries",
-                        "rawSql": "SELECT\n    $__timeInterval(timestamp) AS time,\n    quantile(0.50)(\n        toFloat64(attributes['planning_elapsed_ms'])\n    ) AS p50,\n    quantile(0.90)(\n        toFloat64(attributes['planning_elapsed_ms'])\n    ) AS p90,\n    quantile(0.99)(\n        toFloat64(attributes['planning_elapsed_ms'])\n    ) AS p99\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name = 'turbolay-graph-node'\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'planning_elapsed_ms')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time"
+                        "rawSql": "SELECT\n    $__timeInterval(timestamp) AS time,\n    quantile(0.50)(\n        toFloat64(attributes['planning_elapsed_ms'])\n    ) AS p50,\n    quantile(0.90)(\n        toFloat64(attributes['planning_elapsed_ms'])\n    ) AS p90,\n    quantile(0.99)(\n        toFloat64(attributes['planning_elapsed_ms'])\n    ) AS p99\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name = 'hydradb-graph-node'\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'planning_elapsed_ms')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time"
                       },
                       "version": "v0"
                     },
@@ -312,7 +312,7 @@
                         "editorType": "sql",
                         "format": 0,
                         "queryType": "sql",
-                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       attributes['turbolay.query.optimizer_passes'] AS optimizer_passes,\n       count() / $__interval_s AS warnings\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY time, optimizer_passes\nORDER BY time"
+                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       attributes['hydradb.query.optimizer_passes'] AS optimizer_passes,\n       count() / $__interval_s AS warnings\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY time, optimizer_passes\nORDER BY time"
                       },
                       "version": "v0"
                     },
@@ -324,7 +324,7 @@
               "transformations": []
             }
           },
-          "description": "`turbolay.query.optimizer_passes` is a comma-separated list of passes that fired, not a count. `FullScanFallback` appears in every warned plan.",
+          "description": "`hydradb.query.optimizer_passes` is a comma-separated list of passes that fired, not a count. `FullScanFallback` appears in every warned plan.",
           "id": 12,
           "links": [],
           "title": "Optimizer pass combinations",
@@ -439,7 +439,7 @@
                         "editorType": "sql",
                         "format": 0,
                         "queryType": "sql",
-                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       sum(toFloat64OrNull(attributes['turbolay.query.rows_estimated'])) / $__interval_s AS \"rows estimated\"\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time"
+                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       sum(toFloat64OrNull(attributes['hydradb.query.rows_estimated'])) / $__interval_s AS \"rows estimated\"\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time"
                       },
                       "version": "v0"
                     },
@@ -573,7 +573,7 @@
                         "editorType": "sql",
                         "format": 0,
                         "queryType": "sql",
-                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       k8s_pod_name AS pod,\n       count() / $__interval_s AS warnings\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY time, pod\nORDER BY time"
+                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       k8s_pod_name AS pod,\n       count() / $__interval_s AS warnings\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY time, pod\nORDER BY time"
                       },
                       "version": "v0"
                     },
@@ -1224,7 +1224,7 @@
                         "editorType": "sql",
                         "format": 1,
                         "queryType": "sql",
-                        "rawSql": "SELECT countIf(attributes['turbolay.query.full_scan'] = 'true') AS full_scans\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT countIf(attributes['hydradb.query.full_scan'] = 'true') AS full_scans\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)"
                       },
                       "version": "v0"
                     },
@@ -1236,7 +1236,7 @@
               "transformations": []
             }
           },
-          "description": "Planner warnings with `turbolay.query.full_scan = true` in the dashboard window. ClickHouse only — Prometheus has no per-query plan signal. The flag is a string in the attributes map, because Vector stringifies every value it buckets, so this compares against 'true' rather than casting to bool.",
+          "description": "Planner warnings with `hydradb.query.full_scan = true` in the dashboard window. ClickHouse only — Prometheus has no per-query plan signal. The flag is a string in the attributes map, because Vector stringifies every value it buckets, so this compares against 'true' rather than casting to bool.",
           "id": 2,
           "links": [],
           "title": "Full-scan queries",
@@ -1692,7 +1692,7 @@
                         "editorType": "sql",
                         "format": 0,
                         "queryType": "sql",
-                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       replaceRegexpAll(error_message, ' key [^ ]+$', '') AS error_class,\n       count() / $__interval_s AS errors\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND message = 'Bolt suppressed internal graph error'\n  AND $__timeFilter(timestamp)\nGROUP BY time, error_class\nORDER BY time"
+                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       replaceRegexpAll(error_message, ' key [^ ]+$', '') AS error_class,\n       count() / $__interval_s AS errors\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND message = 'Bolt suppressed internal graph error'\n  AND $__timeFilter(timestamp)\nGROUP BY time, error_class\nORDER BY time"
                       },
                       "version": "v0"
                     },
@@ -1819,7 +1819,7 @@
                         "editorType": "sql",
                         "format": 1,
                         "queryType": "sql",
-                        "rawSql": "SELECT attributes['turbolay.query.access_path'] AS access_path,\n       attributes['turbolay.query.optimizer_passes'] AS optimizer_passes,\n       k8s_pod_name AS pod,\n       count() AS warnings,\n       round(quantile(0.50)(toFloat64OrNull(attributes['planning_elapsed_ms'])), 2) AS planning_p50_ms,\n       round(quantile(0.99)(toFloat64OrNull(attributes['planning_elapsed_ms'])), 2) AS planning_p99_ms,\n       max(toFloat64OrNull(attributes['turbolay.query.rows_estimated'])) AS rows_estimated,\n       max(timestamp) AS last_seen\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY access_path, optimizer_passes, pod\nORDER BY warnings DESC\nLIMIT 50"
+                        "rawSql": "SELECT attributes['hydradb.query.access_path'] AS access_path,\n       attributes['hydradb.query.optimizer_passes'] AS optimizer_passes,\n       k8s_pod_name AS pod,\n       count() AS warnings,\n       round(quantile(0.50)(toFloat64OrNull(attributes['planning_elapsed_ms'])), 2) AS planning_p50_ms,\n       round(quantile(0.99)(toFloat64OrNull(attributes['planning_elapsed_ms'])), 2) AS planning_p99_ms,\n       max(toFloat64OrNull(attributes['hydradb.query.rows_estimated'])) AS rows_estimated,\n       max(timestamp) AS last_seen\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY access_path, optimizer_passes, pod\nORDER BY warnings DESC\nLIMIT 50"
                       },
                       "version": "v0"
                     },
@@ -1831,7 +1831,7 @@
               "transformations": []
             }
           },
-          "description": "One row per (access path, optimizer passes, pod). This is the list to work down when fixing full scans. Tenant attribution may now be available — `turbolay.tenant_id` is recorded on the `client.query` span and promotes to the `tenant_id` column, and `query.plan` is a child of that span — but it is unverified against live data, so no tenant column is selected here yet.",
+          "description": "One row per (access path, optimizer passes, pod). This is the list to work down when fixing full scans. Tenant attribution may now be available — `hydradb.tenant_id` is recorded on the `client.query` span and promotes to the `tenant_id` column, and `query.plan` is a child of that span — but it is unverified against live data, so no tenant column is selected here yet.",
           "id": 25,
           "links": [],
           "title": "Top query shapes",
@@ -1909,7 +1909,7 @@
                         "editorType": "sql",
                         "format": 1,
                         "queryType": "sql",
-                        "rawSql": "SELECT countIf(attributes['turbolay.query.full_scan'] = 'true') AS full_scans\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT countIf(attributes['hydradb.query.full_scan'] = 'true') AS full_scans\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)"
                       },
                       "version": "v0"
                     },
@@ -2036,7 +2036,7 @@
                         "editorType": "sql",
                         "format": 1,
                         "queryType": "sql",
-                        "rawSql": "SELECT uniqExact(attributes['turbolay.query.access_path']) AS access_paths\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT uniqExact(attributes['hydradb.query.access_path']) AS access_paths\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)"
                       },
                       "version": "v0"
                     },
@@ -2048,7 +2048,7 @@
               "transformations": []
             }
           },
-          "description": "Distinct `turbolay.query.access_path` values in the window. On 2026-07-28 this was 1 (`FullEdgeScan:RELATES`); more than one means the full-scan fallback now fires for several edge types.",
+          "description": "Distinct `hydradb.query.access_path` values in the window. On 2026-07-28 this was 1 (`FullEdgeScan:RELATES`); more than one means the full-scan fallback now fires for several edge types.",
           "id": 4,
           "links": [],
           "title": "Access paths seen",
@@ -2114,7 +2114,7 @@
                         "editorType": "sql",
                         "format": 1,
                         "queryType": "sql",
-                        "rawSql": "SELECT quantile(0.50)(toFloat64OrNull(attributes['planning_elapsed_ms'])) AS planning_p50_ms\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT quantile(0.50)(toFloat64OrNull(attributes['planning_elapsed_ms'])) AS planning_p50_ms\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)"
                       },
                       "version": "v0"
                     },
@@ -2201,7 +2201,7 @@
                         "editorType": "sql",
                         "format": 1,
                         "queryType": "sql",
-                        "rawSql": "SELECT quantile(0.99)(toFloat64OrNull(attributes['planning_elapsed_ms'])) AS planning_p99_ms\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT quantile(0.99)(toFloat64OrNull(attributes['planning_elapsed_ms'])) AS planning_p99_ms\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)"
                       },
                       "version": "v0"
                     },
@@ -2288,7 +2288,7 @@
                         "editorType": "sql",
                         "format": 1,
                         "queryType": "sql",
-                        "rawSql": "SELECT quantile(0.50)(toFloat64OrNull(attributes['turbolay.query.rows_estimated'])) AS rows_estimated_p50\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)"
+                        "rawSql": "SELECT quantile(0.50)(toFloat64OrNull(attributes['hydradb.query.rows_estimated'])) AS rows_estimated_p50\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)"
                       },
                       "version": "v0"
                     },
@@ -2367,7 +2367,7 @@
                         "editorType": "sql",
                         "format": 0,
                         "queryType": "sql",
-                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       countIf(attributes['turbolay.query.full_scan'] = 'true') / $__interval_s AS \"full scans\"\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('turbolay-graph-node', 'turbolay-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'turbolay.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time"
+                        "rawSql": "SELECT $__timeInterval(timestamp) AS time,\n       countIf(attributes['hydradb.query.full_scan'] = 'true') / $__interval_s AS \"full scans\"\nFROM cortex.cortex_logs_v2_distributed\nWHERE environment = 'staging'\n  AND service_name IN ('hydradb-graph-node', 'hydradb-graph-indexer')\n  AND k8s_namespace = '$namespace'\n  AND mapContains(attributes, 'hydradb.query.access_path')\n  AND $__timeFilter(timestamp)\nGROUP BY time\nORDER BY time"
                       },
                       "version": "v0"
                     },
@@ -2490,7 +2490,7 @@
     "liveNow": false,
     "preload": false,
     "tags": [
-      "turbolay",
+      "hydradb",
       "query-engine",
       "staging"
     ],
@@ -2514,15 +2514,15 @@
       "timezone": "utc",
       "to": "now"
     },
-    "title": "Turbolay / Query Engine & Planner",
+    "title": "HydraDB / Query Engine & Planner",
     "variables": [
       {
         "kind": "QueryVariable",
         "spec": {
           "allowCustomValue": true,
           "current": {
-            "text": "turbolay-staging",
-            "value": "turbolay-staging"
+            "text": "hydradb-staging",
+            "value": "hydradb-staging"
           },
           "hide": "dontHide",
           "includeAll": false,

@@ -1,15 +1,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "turbolay.fullname" . }}-node-headless
+  name: {{ include "hydradb.fullname" . }}-node-headless
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     app.kubernetes.io/component: node
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-    {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 4 }}
+    {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 4 }}
   ports:
     - name: bolt
       port: 7687
@@ -24,9 +24,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "turbolay.fullname" . }}-bolt
+  name: {{ include "hydradb.fullname" . }}-bolt
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     app.kubernetes.io/component: node
   {{- with .Values.service.bolt.annotations }}
   annotations:
@@ -35,7 +35,7 @@ metadata:
 spec:
   type: {{ .Values.service.bolt.type }}
   selector:
-    {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 4 }}
+    {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 4 }}
   ports:
     - name: bolt
       port: {{ .Values.service.bolt.port }}
@@ -48,9 +48,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "turbolay.fullname" . }}-https
+  name: {{ include "hydradb.fullname" . }}-https
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     app.kubernetes.io/component: node
   {{- with .Values.service.https.annotations }}
   annotations:
@@ -59,7 +59,7 @@ metadata:
 spec:
   type: {{ .Values.service.https.type }}
   selector:
-    {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 4 }}
+    {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 4 }}
   ports:
     - name: https
       port: {{ .Values.service.https.port }}
@@ -72,14 +72,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "turbolay.fullname" . }}-metrics
+  name: {{ include "hydradb.fullname" . }}-metrics
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     app.kubernetes.io/component: node
     graph.usecortex.io/metrics: "true"
 spec:
   selector:
-    {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 4 }}
+    {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 4 }}
   ports:
     - name: metrics
       port: {{ .Values.service.adminPort }}
@@ -89,14 +89,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "turbolay.fullname" . }}-indexer-metrics
+  name: {{ include "hydradb.fullname" . }}-indexer-metrics
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     app.kubernetes.io/component: indexer
     graph.usecortex.io/metrics: "true"
 spec:
   selector:
-    {{- include "turbolay.componentLabels" (dict "root" . "component" "indexer") | nindent 4 }}
+    {{- include "hydradb.componentLabels" (dict "root" . "component" "indexer") | nindent 4 }}
   ports:
     - name: metrics
       port: 9091

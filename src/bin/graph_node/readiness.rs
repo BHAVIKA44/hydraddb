@@ -35,7 +35,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use slatedb_graph_kernel::PlacementView;
-use turbolay_placement::liveness::HeartbeatAction;
+use hydradb_placement::liveness::HeartbeatAction;
 
 /// The node's readiness, shared by the admin server and the heartbeat
 /// publisher.
@@ -105,7 +105,7 @@ mod tests {
         ObjectMeta, ObjectStore, PutMultipartOptions, PutOptions, PutPayload, PutResult,
     };
     use slatedb_graph_kernel::PlacementConfig;
-    use turbolay_placement::liveness::LiveView;
+    use hydradb_placement::liveness::LiveView;
 
     const FLEET: &[&str] = &["graph-node-0", "graph-node-1"];
 

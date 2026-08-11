@@ -4,8 +4,8 @@ use sha2::{Digest, Sha256};
 use slatedb::bytes::Bytes;
 use slatedb::object_store::{ObjectStoreExt, PutMode, UpdateVersion};
 
-const INDEX_MANIFEST_MAGIC: &str = "turbolay-index-current-v1";
-const INDEX_CSC_MAGIC: &[u8] = b"turbolay-index-csc-v1\0";
+const INDEX_MANIFEST_MAGIC: &str = "hydradb-index-current-v1";
+const INDEX_CSC_MAGIC: &[u8] = b"hydradb-index-csc-v1\0";
 const INDEX_PUBLISH_ATTEMPTS: usize = 8;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -588,7 +588,7 @@ fn decode_graph_index_manifest(key: &str, value: &[u8]) -> Result<GraphIndexGene
     let text = text_value(key, value)?;
     let fields = text.trim_end_matches('\n').split('\t').collect::<Vec<_>>();
     if fields.len() != 8 || fields[0] != INDEX_MANIFEST_MAGIC {
-        return corrupt(key, "expected turbolay index current v1 manifest");
+        return corrupt(key, "expected hydradb index current v1 manifest");
     }
     validate_component("cell_id", fields[1])?;
     validate_component("edge_type", fields[2])?;
@@ -636,7 +636,7 @@ fn decode_graph_index_csc(
     expected_checksum: u64,
 ) -> Result<GraphBlasCsc> {
     if !value.starts_with(INDEX_CSC_MAGIC) {
-        return corrupt(key, "expected turbolay index CSC v1 payload");
+        return corrupt(key, "expected hydradb index CSC v1 payload");
     }
     let mut cursor = INDEX_CSC_MAGIC.len();
     let base_sequence = decode_index_u64(key, value, &mut cursor, "base_sequence")?;

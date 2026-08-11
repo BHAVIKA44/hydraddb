@@ -454,7 +454,7 @@ impl GraphShard {
     ) -> Result<()> {
         let span = tracing::info_span!(
             "writer.authority",
-            turbolay.cell_id = %cell_id,
+            hydradb.cell_id = %cell_id,
             error.class = tracing::field::Empty,
         );
         let _entered = span.enter();
@@ -511,15 +511,15 @@ impl GraphShard {
         }
         let span = tracing::info_span!(
             "writer.promote",
-            turbolay.cell_id = %cell_id,
-            turbolay.writer.epoch = tracing::field::Empty,
+            hydradb.cell_id = %cell_id,
+            hydradb.writer.epoch = tracing::field::Empty,
             error.class = tracing::field::Empty,
         );
         async {
             match self.db.promote_writer().await {
                 Ok(_) => {
                     if let Some(epoch) = self.db.writer_epoch() {
-                        tracing::Span::current().record("turbolay.writer.epoch", epoch);
+                        tracing::Span::current().record("hydradb.writer.epoch", epoch);
                     }
                     Ok(())
                 }

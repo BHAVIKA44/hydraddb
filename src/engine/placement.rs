@@ -2,7 +2,7 @@
 //! needs to know who owns a cell's writer.
 //!
 //! [`PlacementView`] is a cheaply-clonable handle around
-//! [`turbolay_placement::LiveNodeSet`]. A background task refreshes it once per
+//! [`hydradb_placement::LiveNodeSet`]. A background task refreshes it once per
 //! `heartbeat_interval` from a single object-store LIST; every reader — the
 //! Bolt routing provider on one side, `RoutedGraphCluster::ensure_local_writer`
 //! on the other — takes a snapshot of the *same* view, synchronously, with no
@@ -20,7 +20,7 @@
 //!
 //! # This module owns the clock, and it is the only one that may
 //!
-//! `turbolay-placement` reads no clock at all (decision 10): `list_heartbeats`
+//! `hydradb-placement` reads no clock at all (decision 10): `list_heartbeats`
 //! is told what time it is, and every liveness rule below it is a pure function
 //! of `Duration`s. Somebody has to actually look at a clock, and this seam is
 //! that somebody:
@@ -49,9 +49,9 @@ use std::sync::{Mutex, PoisonError, RwLock};
 
 use chrono::Utc;
 use slatedb::object_store::path::Path;
-use turbolay_placement::hash as rendezvous;
-use turbolay_placement::heartbeat::{self, HeartbeatEntry, PlacementError};
-use turbolay_placement::liveness::{HeartbeatAction, LiveNodeSet, LiveView, NodeView, ViewState};
+use hydradb_placement::hash as rendezvous;
+use hydradb_placement::heartbeat::{self, HeartbeatEntry, PlacementError};
+use hydradb_placement::liveness::{HeartbeatAction, LiveNodeSet, LiveView, NodeView, ViewState};
 
 /// The two durations placement runs on: decision 5's 5s / 15s.
 ///
@@ -256,7 +256,7 @@ impl PlacementView {
     /// A view for `local_node_id` over the configured fleet `members`.
     ///
     /// Node ids go through the kernel's own `validate_component`, which is the
-    /// same character class `turbolay_placement::heartbeat::validate_node_id`
+    /// same character class `hydradb_placement::heartbeat::validate_node_id`
     /// enforces. Checking here rather than at the first LIST means a
     /// misconfigured `GRAPH_NODE_ID` fails at startup instead of becoming a node
     /// that runs, joins the directory, and silently never appears in its own
@@ -501,7 +501,7 @@ impl PlacementView {
                     let view = state.live.observe_list_failure(since_last_success);
                     tracing::warn!(
                         node_id = %self.shared.local_node_id,
-                        turbolay.placement.state = view.state().as_str(),
+                        hydradb.placement.state = view.state().as_str(),
                         since_last_success_ms = since_last_success.as_millis(),
                         error = %error,
                         "placement heartbeat LIST failed"
@@ -523,9 +523,9 @@ impl PlacementView {
         if previous != current {
             tracing::info!(
                 node_id = %self.shared.local_node_id,
-                turbolay.placement.previous_state = previous.as_str(),
-                turbolay.placement.state = current.as_str(),
-                turbolay.placement.live_nodes = view.nodes().len(),
+                hydradb.placement.previous_state = previous.as_str(),
+                hydradb.placement.state = current.as_str(),
+                hydradb.placement.live_nodes = view.nodes().len(),
                 since_last_success_ms = since_last_success.as_millis(),
                 "placement view state changed"
             );
@@ -535,7 +535,7 @@ impl PlacementView {
 
     /// Move this view's monotonic clock forward, for tests only.
     ///
-    /// Decision 10 makes every rule in `turbolay-placement` a pure function of
+    /// Decision 10 makes every rule in `hydradb-placement` a pure function of
     /// `Duration`s so its tests never sleep. This is what extends that to the
     /// layer holding the `Instant`s: the grace and startup windows are 15s, and
     /// four rules hang off them.
@@ -599,7 +599,7 @@ mod tests {
         CopyOptions, GetOptions, GetResult, ListResult, MultipartUpload, ObjectMeta,
         PutMultipartOptions, PutOptions, PutPayload, PutResult,
     };
-    use turbolay_placement::heartbeat::Heartbeat;
+    use hydradb_placement::heartbeat::Heartbeat;
 
     const SCOPE: &str = "acme/graphs/social";
     const CELL: &str = "cell-a";

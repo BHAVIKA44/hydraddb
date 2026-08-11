@@ -1,9 +1,9 @@
 [package]
-name = "turbolay-telemetry"
+name = "hydradb-telemetry"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.91"
-description = "OpenTelemetry logs and traces for the Turbolay graph-node and graph-indexer binaries"
+description = "OpenTelemetry logs and traces for the HydraDB graph-node and graph-indexer binaries"
 publish = false
 
 # No dependency on `slatedb-graph-kernel`, and the kernel must not gain one on

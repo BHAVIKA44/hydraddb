@@ -11,7 +11,7 @@
 //!
 //! Hence this file. Everything here goes through
 //! `tracing_opentelemetry::layer()` over a real [`SdkTracerProvider`] carrying
-//! [`TurbolaySampler`], and asserts on what a [`SpanProcessor`] actually
+//! [`HydraDBSampler`], and asserts on what a [`SpanProcessor`] actually
 //! receives. A dropped span is never handed to a processor, so "did this span
 //! survive" is simply "did anything arrive".
 //!
@@ -27,8 +27,8 @@ use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_sdk::error::OTelSdkResult;
 use opentelemetry_sdk::trace::{SdkTracerProvider, SpanData, SpanProcessor};
 use tracing_subscriber::layer::SubscriberExt;
-use turbolay_telemetry::sampling::TurbolaySampler;
-use turbolay_telemetry::semconv;
+use hydradb_telemetry::sampling::HydraDBSampler;
+use hydradb_telemetry::semconv;
 
 /// Collects whatever survives sampling.
 #[derive(Debug, Default, Clone)]
@@ -55,11 +55,11 @@ impl SpanProcessor for Capture {
 fn exported_spans(ratio: f64, body: impl FnOnce()) -> Vec<String> {
     let capture = Capture::default();
     let provider = SdkTracerProvider::builder()
-        .with_sampler(TurbolaySampler::new(ratio))
+        .with_sampler(HydraDBSampler::new(ratio))
         .with_span_processor(capture.clone())
         .build();
     let subscriber = tracing_subscriber::registry().with(
-        tracing_opentelemetry::layer().with_tracer(provider.tracer("turbolay-head-sampling-test")),
+        tracing_opentelemetry::layer().with_tracer(provider.tracer("hydradb-head-sampling-test")),
     );
     tracing::subscriber::with_default(subscriber, body);
     let _ = provider.force_flush();
@@ -81,11 +81,11 @@ fn a_force_recorded_after_the_span_starts_cannot_keep_the_trace() {
     let exported = exported_spans(0.0, || {
         let span = tracing::info_span!(
             "query.plan",
-            turbolay.sampling.force = tracing::field::Empty,
+            hydradb.sampling.force = tracing::field::Empty,
         );
         let entered = span.enter();
         // …the planner runs, and only now is the verdict known…
-        span.record("turbolay.sampling.force", true);
+        span.record("hydradb.sampling.force", true);
         drop(entered);
     });
     assert!(
@@ -102,13 +102,13 @@ fn a_force_set_at_span_creation_keeps_the_trace() {
     for exported in [
         exported_spans(0.0, || {
             let _entered =
-                tracing::info_span!("client.query", turbolay.sampling.force = true).entered();
+                tracing::info_span!("client.query", hydradb.sampling.force = true).entered();
         }),
         // A stringly-typed caller must work too — `Value::as_str` is what the
         // sampler compares, and a bool and a &str arrive as different variants.
         exported_spans(0.0, || {
             let _entered =
-                tracing::info_span!("client.query", turbolay.sampling.force = "true").entered();
+                tracing::info_span!("client.query", hydradb.sampling.force = "true").entered();
         }),
     ] {
         assert_eq!(exported, vec!["client.query".to_string()]);
@@ -130,7 +130,7 @@ fn a_forced_child_cannot_resurrect_a_dropped_root() {
     let exported = exported_spans(0.0, || {
         let root = tracing::info_span!("client.query");
         let _root = root.enter();
-        let _child = tracing::info_span!("query.plan", turbolay.sampling.force = true).entered();
+        let _child = tracing::info_span!("query.plan", hydradb.sampling.force = true).entered();
     });
     assert!(
         exported.is_empty(),
@@ -139,7 +139,7 @@ fn a_forced_child_cannot_resurrect_a_dropped_root() {
     );
 }
 
-/// `turbolay.query.full_scan` is a *data* attribute and must never steer
+/// `hydradb.query.full_scan` is a *data* attribute and must never steer
 /// sampling, even when a callsite does supply it at creation time.
 ///
 /// It used to force a keep, which was dead code twice over — recorded only
@@ -151,7 +151,7 @@ fn a_forced_child_cannot_resurrect_a_dropped_root() {
 #[test]
 fn a_data_attribute_at_span_creation_does_not_keep_the_trace() {
     let exported = exported_spans(0.0, || {
-        let _entered = tracing::info_span!("query.plan", turbolay.query.full_scan = true).entered();
+        let _entered = tracing::info_span!("query.plan", hydradb.query.full_scan = true).entered();
     });
     assert!(
         exported.is_empty(),
@@ -168,17 +168,17 @@ fn a_data_attribute_at_span_creation_does_not_keep_the_trace() {
 fn the_tail_keep_marker_is_inert_in_the_head_sampler() {
     let at_creation = exported_spans(0.0, || {
         let _entered =
-            tracing::info_span!("client.query", turbolay.sampling.tail_keep = "error").entered();
+            tracing::info_span!("client.query", hydradb.sampling.tail_keep = "error").entered();
     });
     assert!(at_creation.is_empty(), "{at_creation:?}");
 
     let after_the_fact = exported_spans(0.0, || {
         let span = tracing::info_span!(
             "client.query",
-            turbolay.sampling.tail_keep = tracing::field::Empty,
+            hydradb.sampling.tail_keep = tracing::field::Empty,
         );
         let entered = span.enter();
-        span.record("turbolay.sampling.tail_keep", "error");
+        span.record("hydradb.sampling.tail_keep", "error");
         drop(entered);
     });
     assert!(after_the_fact.is_empty(), "{after_the_fact:?}");

@@ -4119,7 +4119,7 @@ async fn routed_cluster_lease_prevents_cross_node_writer_fencing() {
 /// all three nodes hold the same fleet view, so rendezvous names exactly one
 /// owner and the other two are refused at the gate instead of taking the epoch.
 ///
-/// The winner is computed here from `turbolay_placement::hash::owner` rather
+/// The winner is computed here from `hydradb_placement::hash::owner` rather
 /// than read back off whichever node happened to promote. A test that observed
 /// the winner would still pass if ownership were settled by a coin flip, and a
 /// coin flip is what the incident was.
@@ -4152,7 +4152,7 @@ async fn three_nodes_writing_one_cell_at_once_leave_one_writer_and_a_bounded_epo
 
     let object_store: Arc<dyn ObjectStore> = Arc::new(InMemory::new());
     let scope = GraphScope::default();
-    let expected_owner = turbolay_placement::hash::owner(&scope.to_string(), CELL, &FLEET)
+    let expected_owner = hydradb_placement::hash::owner(&scope.to_string(), CELL, &FLEET)
         .expect("a non-empty fleet has an owner");
     let directory = ObjectStoreNodeDirectory::new([CELL], FLEET).unwrap();
 

@@ -1,34 +1,34 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "turbolay.fullname" . }}-node
+  name: {{ include "hydradb.fullname" . }}-node
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     app.kubernetes.io/component: node
 spec:
-  serviceName: {{ include "turbolay.fullname" . }}-node-headless
+  serviceName: {{ include "hydradb.fullname" . }}-node-headless
   replicas: {{ .Values.node.replicaCount }}
   podManagementPolicy: Parallel
   updateStrategy:
     type: {{ .Values.node.updateStrategy }}
   selector:
     matchLabels:
-      {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 6 }}
+      {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 8 }}
+        {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 8 }}
         {{- with .Values.node.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
         checksum/runtime-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        secret.reloader.stakater.com/reload: {{ printf "%s,%s" (include "turbolay.authSecretName" .) (include "turbolay.publicTlsSecretName" .) | quote }}
+        secret.reloader.stakater.com/reload: {{ printf "%s,%s" (include "hydradb.authSecretName" .) (include "hydradb.publicTlsSecretName" .) | quote }}
         {{- with .Values.node.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      serviceAccountName: {{ include "turbolay.nodeServiceAccountName" . }}
+      serviceAccountName: {{ include "hydradb.nodeServiceAccountName" . }}
       automountServiceAccountToken: true
       terminationGracePeriodSeconds: {{ .Values.node.terminationGracePeriodSeconds }}
       {{- with .Values.image.pullSecrets }}
@@ -65,7 +65,7 @@ spec:
                 topologyKey: kubernetes.io/hostname
                 labelSelector:
                   matchLabels:
-                    {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 20 }}
+                    {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 20 }}
       {{- end }}
       {{- if .Values.node.topologySpreadConstraints }}
       topologySpreadConstraints:
@@ -77,15 +77,15 @@ spec:
           whenUnsatisfiable: ScheduleAnyway
           labelSelector:
             matchLabels:
-              {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 14 }}
+              {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 14 }}
       {{- end }}
       containers:
         - name: graph-node
-          image: {{ include "turbolay.image" . }}
+          image: {{ include "hydradb.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
             - configMapRef:
-                name: {{ include "turbolay.fullname" . }}-runtime
+                name: {{ include "hydradb.fullname" . }}-runtime
           env:
             - name: GRAPH_NODE_ID
               valueFrom:
@@ -146,11 +146,11 @@ spec:
             - name: tmp
               mountPath: /tmp
             - name: auth
-              mountPath: /var/run/secrets/turbolay
+              mountPath: /var/run/secrets/hydradb
               readOnly: true
             {{- if .Values.tls.public.enabled }}
             - name: public-tls
-              mountPath: /var/run/secrets/turbolay/public
+              mountPath: /var/run/secrets/hydradb/public
               readOnly: true
             {{- end }}
       volumes:
@@ -167,14 +167,14 @@ spec:
             sizeLimit: {{ .Values.node.tmpSizeLimit }}
         - name: auth
           secret:
-            secretName: {{ include "turbolay.authSecretName" . }}
+            secretName: {{ include "hydradb.authSecretName" . }}
             items:
               - key: {{ .Values.auth.secretKey }}
                 path: {{ .Values.auth.secretKey }}
         {{- if .Values.tls.public.enabled }}
         - name: public-tls
           secret:
-            secretName: {{ include "turbolay.publicTlsSecretName" . }}
+            secretName: {{ include "hydradb.publicTlsSecretName" . }}
         {{- end }}
   {{- if eq .Values.node.cache.type "persistentVolume" }}
   volumeClaimTemplates:

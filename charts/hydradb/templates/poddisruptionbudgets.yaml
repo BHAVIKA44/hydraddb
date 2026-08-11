@@ -2,9 +2,9 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "turbolay.fullname" . }}-node
+  name: {{ include "hydradb.fullname" . }}-node
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     app.kubernetes.io/component: node
 spec:
   {{- if ne .Values.podDisruptionBudget.node.maxUnavailable nil }}
@@ -15,16 +15,16 @@ spec:
   unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
     matchLabels:
-      {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 6 }}
+      {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 6 }}
 {{- end }}
 {{- if and .Values.podDisruptionBudget.enabled .Values.indexer.enabled }}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "turbolay.fullname" . }}-indexer
+  name: {{ include "hydradb.fullname" . }}-indexer
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
     app.kubernetes.io/component: indexer
 spec:
   {{- if ne .Values.podDisruptionBudget.indexer.maxUnavailable nil }}
@@ -35,5 +35,5 @@ spec:
   unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
     matchLabels:
-      {{- include "turbolay.componentLabels" (dict "root" . "component" "indexer") | nindent 6 }}
+      {{- include "hydradb.componentLabels" (dict "root" . "component" "indexer") | nindent 6 }}
 {{- end }}

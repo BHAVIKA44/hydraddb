@@ -3,8 +3,8 @@
 //! # Why this is a hook and not a dependency
 //!
 //! The kernel emits through the plain [`tracing`] facade and must not depend on
-//! `turbolay-telemetry` or on any `opentelemetry-*` crate — the rule
-//! `turbolay-placement` follows, and the reason `cargo test` stays free of the
+//! `hydradb-telemetry` or on any `opentelemetry-*` crate — the rule
+//! `hydradb-placement` follows, and the reason `cargo test` stays free of the
 //! OTel dependency tree.
 //!
 //! That rule collides with a fact about `tracing`: a span's id is an internal
@@ -34,7 +34,7 @@ use std::sync::OnceLock;
 
 /// Converts between the ambient `tracing` span and a W3C `traceparent`.
 ///
-/// Implemented in `turbolay-telemetry` over `tracing-opentelemetry`, and
+/// Implemented in `hydradb-telemetry` over `tracing-opentelemetry`, and
 /// installed once by whichever binary owns the subscriber.
 pub trait TraceContextBridge: Send + Sync {
     /// Format the currently active span as a `traceparent`, if there is one and
@@ -109,7 +109,7 @@ pub fn adopt_remote_parent(span: &tracing::Span, traceparent: Option<&str>) {
 
 /// Length of a well-formed `traceparent`, per W3C Trace Context.
 ///
-/// Mirrors `turbolay_telemetry::propagate::TRACEPARENT_LEN`; the two cannot be
+/// Mirrors `hydradb_telemetry::propagate::TRACEPARENT_LEN`; the two cannot be
 /// shared, because sharing them is the dependency this module exists to avoid.
 #[cfg(any(feature = "query-transport", feature = "bolt-server"))]
 const TRACEPARENT_LEN: usize = 55;

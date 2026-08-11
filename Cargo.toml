@@ -99,9 +99,9 @@ server-runtime = [
     "query-service-discovery",
     "dep:rustls-pemfile",
     "dep:tracing-subscriber",
-    "dep:turbolay-telemetry",
+    "dep:hydradb-telemetry",
 ]
-indexer-runtime = ["dep:axum", "dep:tracing-subscriber", "tokio/net", "dep:turbolay-telemetry"]
+indexer-runtime = ["dep:axum", "dep:tracing-subscriber", "tokio/net", "dep:hydradb-telemetry"]
 
 # OTLP export, off by default and never enabled by another feature. Off, the
 # binaries still initialise telemetry and still emit JSON to stdout — they just
@@ -110,7 +110,7 @@ indexer-runtime = ["dep:axum", "dep:tracing-subscriber", "tokio/net", "dep:turbo
 # which claimed no root `[features]` entry would be needed: true of the library,
 # but the binaries are in this package, so shipping OTLP at all needs a switch
 # here. It is additive — no existing combination changes meaning.
-otlp = ["turbolay-telemetry/otlp"]
+otlp = ["hydradb-telemetry/otlp"]
 
 [[bin]]
 name = "graph-node"
@@ -184,7 +184,7 @@ axum-server = { workspace = true, optional = true }
 boltr = { workspace = true, optional = true }
 bytes = { workspace = true }
 base64 = { workspace = true, optional = true }
-# Direct, not transitive. `turbolay-placement` takes `DateTime<Utc>` on its
+# Direct, not transitive. `hydradb-placement` takes `DateTime<Utc>` on its
 # heartbeat and LIST boundaries, and without this the type is not nameable in
 # the kernel at all — `object_store` does not re-export chrono. Two independent
 # attempts at the placement wiring both worked around that by writing
@@ -205,7 +205,7 @@ sha2 = { workspace = true }
 subtle = { workspace = true, optional = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, optional = true }
-turbolay-placement = { path = "crates/placement" }
+hydradb-placement = { path = "crates/placement" }
 ulid = { workspace = true }
 # Optional, because only `src/bin/` uses it: the library half of this package
 # emits through the plain `tracing` facade and must keep compiling — and
@@ -217,7 +217,7 @@ ulid = { workspace = true }
 # is off by default, so a bare `cargo test` and every existing feature
 # combination resolve exactly as they did before. Turning OTLP on is the root
 # `otlp` feature below, and nothing enables it implicitly.
-turbolay-telemetry = { path = "crates/telemetry", optional = true }
+hydradb-telemetry = { path = "crates/telemetry", optional = true }
 
 [dev-dependencies]
 boltr = { workspace = true, features = ["client"] }

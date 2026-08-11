@@ -74,7 +74,7 @@
 //!       - name: keep-flagged
 //!         type: string_attribute
 //!         string_attribute:
-//!           key: turbolay.sampling.tail_keep
+//!           key: hydradb.sampling.tail_keep
 //!           values: [error, full_scan]
 //!       - name: baseline
 //!         type: probabilistic
@@ -101,13 +101,13 @@ use crate::semconv;
 /// defeat the reason for tracing the write path at all.
 const ALWAYS_SAMPLE_SPANS: &[&str] = &["writer.promote", "writer.fence_refresh", "writer.acquire"];
 
-/// Turbolay's head sampling policy. See the module docs.
+/// HydraDB's head sampling policy. See the module docs.
 #[derive(Clone, Debug)]
-pub struct TurbolaySampler {
+pub struct HydraDBSampler {
     ratio: f64,
 }
 
-impl TurbolaySampler {
+impl HydraDBSampler {
     /// Build with a ratio in `0.0..=1.0`. Values outside the range are clamped
     /// rather than rejected — a sampler is not worth failing a boot over.
     pub fn new(ratio: f64) -> Self {
@@ -165,7 +165,7 @@ impl TurbolaySampler {
     }
 }
 
-impl ShouldSample for TurbolaySampler {
+impl ShouldSample for HydraDBSampler {
     fn should_sample(
         &self,
         parent_context: Option<&Context>,
@@ -218,7 +218,7 @@ mod tests {
         TraceId::from_bytes(bytes)
     }
 
-    fn sample(sampler: &TurbolaySampler, name: &str, attributes: &[KeyValue]) -> SamplingDecision {
+    fn sample(sampler: &HydraDBSampler, name: &str, attributes: &[KeyValue]) -> SamplingDecision {
         sampler
             .should_sample(
                 None,
@@ -233,14 +233,14 @@ mod tests {
 
     #[test]
     fn ratio_is_clamped_not_rejected() {
-        assert_eq!(TurbolaySampler::new(-3.0).ratio(), 0.0);
-        assert_eq!(TurbolaySampler::new(7.0).ratio(), 1.0);
-        assert_eq!(TurbolaySampler::new(0.25).ratio(), 0.25);
+        assert_eq!(HydraDBSampler::new(-3.0).ratio(), 0.0);
+        assert_eq!(HydraDBSampler::new(7.0).ratio(), 1.0);
+        assert_eq!(HydraDBSampler::new(0.25).ratio(), 0.25);
     }
 
     #[test]
     fn ratio_one_keeps_everything() {
-        let sampler = TurbolaySampler::new(1.0);
+        let sampler = HydraDBSampler::new(1.0);
         for low in [0, 1, u64::MAX / 2, u64::MAX] {
             assert_eq!(
                 sampler
@@ -255,7 +255,7 @@ mod tests {
     /// goes dark exactly when somebody turns sampling off to cut cost.
     #[test]
     fn ratio_zero_still_keeps_writer_spans() {
-        let sampler = TurbolaySampler::new(0.0);
+        let sampler = HydraDBSampler::new(0.0);
         assert_eq!(
             sample(&sampler, "client.query", &[]),
             SamplingDecision::Drop
@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn explicit_force_attribute_is_honoured() {
-        let sampler = TurbolaySampler::new(0.0);
+        let sampler = HydraDBSampler::new(0.0);
         for value in [
             KeyValue::new(semconv::SAMPLING_FORCE, "true"),
             KeyValue::new(semconv::SAMPLING_FORCE, true),
@@ -287,7 +287,7 @@ mod tests {
     /// `force = false` is the common case and must not force a keep.
     #[test]
     fn a_false_flag_does_not_force_a_keep() {
-        let sampler = TurbolaySampler::new(0.0);
+        let sampler = HydraDBSampler::new(0.0);
         let attributes = [KeyValue::new(semconv::SAMPLING_FORCE, "false")];
         assert_eq!(
             sample(&sampler, "query.plan", &attributes),
@@ -295,7 +295,7 @@ mod tests {
         );
     }
 
-    /// `turbolay.query.full_scan` is a *data* attribute, not a sampling one.
+    /// `hydradb.query.full_scan` is a *data* attribute, not a sampling one.
     ///
     /// It used to force a keep here, which was dead code — it is only ever
     /// recorded after the planner has run, on a child span, so the sampler never
@@ -306,7 +306,7 @@ mod tests {
     /// and nothing else.
     #[test]
     fn a_data_attribute_never_forces_a_keep() {
-        let sampler = TurbolaySampler::new(0.0);
+        let sampler = HydraDBSampler::new(0.0);
         let attributes = [KeyValue::new(semconv::QUERY_FULL_SCAN, "true")];
         assert_eq!(
             sample(&sampler, "query.plan", &attributes),
@@ -320,7 +320,7 @@ mod tests {
     /// force a keep.
     #[test]
     fn the_tail_keep_marker_is_inert_in_the_head_sampler() {
-        let sampler = TurbolaySampler::new(0.0);
+        let sampler = HydraDBSampler::new(0.0);
         let attributes = [KeyValue::new(
             semconv::SAMPLING_TAIL_KEEP,
             semconv::SAMPLING_TAIL_KEEP_ERROR,
@@ -335,7 +335,7 @@ mod tests {
     /// distributed query independently agrees.
     #[test]
     fn ratio_decision_is_deterministic_in_the_trace_id() {
-        let sampler = TurbolaySampler::new(0.5);
+        let sampler = HydraDBSampler::new(0.5);
         let id = trace_id_from(12345);
         let first = sampler.should_sample(None, id, "q", &SpanKind::Internal, &[], &[]);
         let second = sampler.should_sample(None, id, "q", &SpanKind::Internal, &[], &[]);
@@ -344,7 +344,7 @@ mod tests {
 
     #[test]
     fn ratio_selects_roughly_the_requested_share() {
-        let sampler = TurbolaySampler::new(0.25);
+        let sampler = HydraDBSampler::new(0.25);
         let kept = (0..10_000u64)
             .filter(|low| {
                 sampler

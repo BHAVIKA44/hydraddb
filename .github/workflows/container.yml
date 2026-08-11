@@ -14,15 +14,15 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.event_name == 'pull_request' && format('turbolay-pr-{0}', github.event.pull_request.number) || 'turbolay-staging-release' }}
+  group: ${{ github.event_name == 'pull_request' && format('hydradb-pr-{0}', github.event.pull_request.number) || 'hydradb-staging-release' }}
   cancel-in-progress: true
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: staging/turbolay
+  ECR_REPOSITORY: staging/hydradb
   IMAGE_TAG: ${{ github.sha }}
   DEPLOY_ENV: staging
-  ARGOCD_APP_NAME: turbolay-staging
+  ARGOCD_APP_NAME: hydradb-staging
   INFRA_REPO: usecortex/hydradb-argocd
 
 jobs:
@@ -46,17 +46,17 @@ jobs:
           file: ./Dockerfile
           push: false
           platforms: linux/amd64
-          tags: turbolay-pr:${{ github.sha }}
+          tags: hydradb-pr:${{ github.sha }}
           # Read-only against the scope that main publishes, and deliberately
           # no `cache-to`. A per-pull-request scope wrote a fresh ~620 MiB blob
           # on every build; against the repository's 10 GiB Actions cache
-          # budget those entries evicted `turbolay-linux-amd64` itself, so main
+          # budget those entries evicted `hydradb-linux-amd64` itself, so main
           # kept rebuilding cold to keep a cache that only ever served one pull
           # request. Nothing is lost by dropping the write: `Dockerfile:17`
           # copies the source tree above the `cargo build` layer, so a second
           # push to the same branch could never have reused the first one's
           # compile anyway.
-          cache-from: type=gha,scope=turbolay-linux-amd64
+          cache-from: type=gha,scope=hydradb-linux-amd64
           provenance: false
           sbom: false
 
@@ -101,8 +101,8 @@ jobs:
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
-          cache-from: type=gha,scope=turbolay-linux-amd64
-          cache-to: type=gha,scope=turbolay-linux-amd64,mode=max
+          cache-from: type=gha,scope=hydradb-linux-amd64
+          cache-to: type=gha,scope=hydradb-linux-amd64,mode=max
           provenance: mode=max
           sbom: true
 
@@ -121,19 +121,19 @@ jobs:
           token: ${{ secrets.INFRA_REPO_TOKEN }}
           ref: main
 
-      - name: Checkout canonical Turbolay chart
+      - name: Checkout canonical HydraDB chart
         uses: actions/checkout@v6
         with:
           repository: ${{ github.repository }}
           ref: ${{ github.sha }}
-          path: .turbolay-source
+          path: .hydradb-source
           persist-credentials: false
 
       - name: Verify canonical Helm chart
         run: |
           set -euo pipefail
-          source_chart=.turbolay-source/charts/turbolay
-          deployed_chart=infra/charts/turbolay
+          source_chart=.hydradb-source/charts/hydradb
+          deployed_chart=infra/charts/hydradb
           drift=0
 
           # Infra-only extensions may coexist; canonical files must match exactly.
@@ -141,12 +141,12 @@ jobs:
             relative_path="${source_file#${source_chart}/}"
             deployed_file="${deployed_chart}/${relative_path}"
             if [[ ! -f "${deployed_file}" ]]; then
-              echo "::error file=${deployed_file}::Canonical Turbolay chart file is missing from the infra repository"
+              echo "::error file=${deployed_file}::Canonical HydraDB chart file is missing from the infra repository"
               drift=1
               continue
             fi
             if ! cmp -s "${source_file}" "${deployed_file}"; then
-              echo "::error file=${deployed_file}::Turbolay chart differs from the reviewed canonical chart"
+              echo "::error file=${deployed_file}::HydraDB chart differs from the reviewed canonical chart"
               diff -u "${deployed_file}" "${source_file}" || true
               drift=1
             fi
@@ -162,7 +162,7 @@ jobs:
           IMAGE_REPOSITORY: ${{ needs.build-and-push.outputs.ecr_registry }}/${{ env.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
           IMAGE_DIGEST: ${{ needs.build-and-push.outputs.image_digest }}
-          VALUES_FILE: infra/environments/staging/turbolay/values.yaml
+          VALUES_FILE: infra/environments/staging/hydradb/values.yaml
         uses: mikefarah/yq@v4.45.1
         with:
           cmd: >-
@@ -180,15 +180,15 @@ jobs:
         env:
           IMAGE_REPOSITORY: ${{ needs.build-and-push.outputs.ecr_registry }}/${{ env.ECR_REPOSITORY }}
           IMAGE_DIGEST: ${{ needs.build-and-push.outputs.image_digest }}
-          VALUES_FILE: infra/environments/staging/turbolay/values.yaml
+          VALUES_FILE: infra/environments/staging/hydradb/values.yaml
         run: |
           set -euo pipefail
-          helm lint --strict infra/charts/turbolay --values "${VALUES_FILE}"
-          helm template turbolay-staging infra/charts/turbolay \
-            --namespace turbolay-staging \
+          helm lint --strict infra/charts/hydradb --values "${VALUES_FILE}"
+          helm template hydradb-staging infra/charts/hydradb \
+            --namespace hydradb-staging \
             --values "${VALUES_FILE}" \
-            > /tmp/turbolay-staging.yaml
-          grep -q "image: ${IMAGE_REPOSITORY}@${IMAGE_DIGEST}" /tmp/turbolay-staging.yaml
+            > /tmp/hydradb-staging.yaml
+          grep -q "image: ${IMAGE_REPOSITORY}@${IMAGE_DIGEST}" /tmp/hydradb-staging.yaml
 
       - name: Commit and push deployment
         env:
@@ -204,8 +204,8 @@ jobs:
             echo "No changes to commit - image is already ${IMAGE_TAG}@${IMAGE_DIGEST}"
             exit 0
           fi
-          git add infra/environments/staging/turbolay/values.yaml
-          git commit -m "deploy(turbolay): update staging image to ${IMAGE_TAG}" \
+          git add infra/environments/staging/hydradb/values.yaml
+          git commit -m "deploy(hydradb): update staging image to ${IMAGE_TAG}" \
             -m "Digest: ${IMAGE_DIGEST}" \
             -m "Triggered by: ${TRIGGER_MESSAGE}" \
             -m "Commit: ${{ github.repository }}@${IMAGE_TAG}" \
@@ -216,7 +216,7 @@ jobs:
     name: Sync staging Argo CD application
     if: >-
       github.event_name != 'pull_request' &&
-      vars.TURBOLAY_STAGING_DEPLOY_ENABLED == 'true'
+      vars.HYDRADB_STAGING_DEPLOY_ENABLED == 'true'
     needs: [build-and-push, update-manifest]
     runs-on: ubuntu-latest
     env:

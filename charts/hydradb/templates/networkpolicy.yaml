@@ -2,25 +2,25 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "turbolay.fullname" . }}-default-deny
+  name: {{ include "hydradb.fullname" . }}-default-deny
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "turbolay.selectorLabels" . | nindent 6 }}
+      {{- include "hydradb.selectorLabels" . | nindent 6 }}
   policyTypes: ["Ingress", "Egress"]
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "turbolay.fullname" . }}-runtime
+  name: {{ include "hydradb.fullname" . }}-runtime
   labels:
-    {{- include "turbolay.labels" . | nindent 4 }}
+    {{- include "hydradb.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "turbolay.selectorLabels" . | nindent 6 }}
+      {{- include "hydradb.selectorLabels" . | nindent 6 }}
   policyTypes: ["Ingress", "Egress"]
   ingress:
     {{- with .Values.networkPolicy.clientIngressFrom }}
@@ -35,7 +35,7 @@ spec:
     - from:
         - podSelector:
             matchLabels:
-              {{- include "turbolay.componentLabels" (dict "root" . "component" "node") | nindent 14 }}
+              {{- include "hydradb.componentLabels" (dict "root" . "component" "node") | nindent 14 }}
         - namespaceSelector:
             {{- toYaml .Values.networkPolicy.monitoringNamespaceSelector | nindent 12 }}
       ports:
@@ -47,7 +47,7 @@ spec:
     - from:
         - podSelector:
             matchLabels:
-              {{- include "turbolay.componentLabels" (dict "root" . "component" "helm-test") | nindent 14 }}
+              {{- include "hydradb.componentLabels" (dict "root" . "component" "helm-test") | nindent 14 }}
       ports:
         - protocol: TCP
           port: 7687
@@ -67,7 +67,7 @@ spec:
     - to:
         - podSelector:
             matchLabels:
-              {{- include "turbolay.selectorLabels" . | nindent 14 }}
+              {{- include "hydradb.selectorLabels" . | nindent 14 }}
       ports:
         - protocol: TCP
           port: 7687
@@ -89,7 +89,7 @@ spec:
         {{- toYaml .Values.objectStore.aws.endpointEgressTo | nindent 8 }}
       ports:
         - protocol: TCP
-          port: {{ include "turbolay.objectStoreEndpointPort" . }}
+          port: {{ include "hydradb.objectStoreEndpointPort" . }}
     {{- end }}
     {{- with .Values.networkPolicy.additionalEgress }}
     {{- toYaml . | nindent 4 }}

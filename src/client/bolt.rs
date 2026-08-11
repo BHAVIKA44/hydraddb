@@ -921,7 +921,7 @@ async fn run_bolt_protocol(
                     Some(prepared.action),
                 );
                 // Join the caller's trace if they sent one, before the span is
-                // ever entered. This is the ingestion-to-Turbolay edge; the
+                // ever entered. This is the ingestion-to-HydraDB edge; the
                 // node-to-node edge is the transport's own `traceparent` field.
                 crate::core::trace_context::adopt_remote_parent(
                     &statement_span,
@@ -1217,12 +1217,12 @@ macro_rules! bolt_ingress_span {
         tracing::info_span!(
             target: "slatedb_graph_kernel",
             $name,
-            turbolay.scope = tracing::field::Empty,
-            turbolay.cell_id = tracing::field::Empty,
-            turbolay.tenant_id = tracing::field::Empty,
-            turbolay.tenant.scope_id = tracing::field::Empty,
-            turbolay.sub_tenant_id = tracing::field::Empty,
-            turbolay.sub_tenant.scope_id = tracing::field::Empty,
+            hydradb.scope = tracing::field::Empty,
+            hydradb.cell_id = tracing::field::Empty,
+            hydradb.tenant_id = tracing::field::Empty,
+            hydradb.tenant.scope_id = tracing::field::Empty,
+            hydradb.sub_tenant_id = tracing::field::Empty,
+            hydradb.sub_tenant.scope_id = tracing::field::Empty,
             error.class = tracing::field::Empty,
         )
     };
@@ -1248,8 +1248,8 @@ fn record_bolt_ingress_scope(
     let Ok(target) = context.database_resolver.resolve_database(Some(&database)) else {
         return;
     };
-    span.record("turbolay.scope", tracing::field::display(&target.scope));
-    span.record("turbolay.cell_id", target.cell_id.as_str());
+    span.record("hydradb.scope", tracing::field::display(&target.scope));
+    span.record("hydradb.cell_id", target.cell_id.as_str());
     crate::client::service::record_scope_tenancy(span, &target.scope);
 }
 
@@ -1369,22 +1369,22 @@ fn bolt_query_request(
 /// `tx_metadata` key carrying the requested read consistency. This is the one
 /// key the channel has carried in production, and its handling below is
 /// unchanged by the allowlist that now surrounds it.
-const TX_METADATA_CONSISTENCY: &str = "turbolay.consistency";
+const TX_METADATA_CONSISTENCY: &str = "hydradb.consistency";
 
 /// `tx_metadata` key carrying the caller's own request identifier — the field
-/// that makes a Turbolay log line and an ingestion log line joinable.
-const TX_METADATA_CORRELATION_ID: &str = "turbolay.correlation_id";
+/// that makes a HydraDB log line and an ingestion log line joinable.
+const TX_METADATA_CORRELATION_ID: &str = "hydradb.correlation_id";
 
 /// `tx_metadata` key carrying the caller's operation label, e.g. which step of
 /// a multi-step workflow issued this query.
-const TX_METADATA_CALLER_STEP: &str = "turbolay.caller.step";
+const TX_METADATA_CALLER_STEP: &str = "hydradb.caller.step";
 
 /// Optional caller-owned mutation identity. A caller that retries the same
 /// logical write must preserve this value across attempts. When absent, Bolt
 /// generates a globally unique identity for this RUN request.
-const TX_METADATA_IDEMPOTENCY_KEY: &str = "turbolay.idempotency_key";
+const TX_METADATA_IDEMPOTENCY_KEY: &str = "hydradb.idempotency_key";
 
-/// Every `tx_metadata` key Turbolay reads.
+/// Every `tx_metadata` key HydraDB reads.
 ///
 /// The dict arrives from any Bolt client, so each recognized value has a
 /// dedicated parser and an unrecognized key is dropped rather than forwarded.
@@ -1400,10 +1400,10 @@ const TX_METADATA_ALLOWLIST: &[&str] = &[
 
 /// `tx_metadata` key carrying the caller's W3C trace context.
 ///
-/// Spelled without the `turbolay.` prefix, unlike its neighbours, because it is
+/// Spelled without the `hydradb.` prefix, unlike its neighbours, because it is
 /// not ours: `traceparent` is the name W3C Trace Context defines and every
 /// other tracing system already sends. Renaming it would mean every client
-/// library had to special-case Turbolay.
+/// library had to special-case HydraDB.
 const TX_METADATA_TRACEPARENT: &str = "traceparent";
 
 /// The caller-supplied correlation fields lifted out of `tx_metadata`, already
@@ -1428,7 +1428,7 @@ fn bolt_tx_metadata(extra: &BoltDict) -> std::result::Result<Option<&BoltDict>, 
 /// Read the allowlisted caller-correlation keys out of `tx_metadata`.
 ///
 /// Every value is untrusted. An over-long, non-printable, empty or wrongly
-/// typed value is **dropped**, not truncated and not repaired, and Turbolay
+/// typed value is **dropped**, not truncated and not repaired, and HydraDB
 /// never mints a replacement: a server-invented correlation id matches nothing
 /// upstream, so it looks like a join key while joining nothing. That is the
 /// deliberate difference from the ingestion side's `sanitize_correlation_id`,
@@ -1680,15 +1680,15 @@ where
             target: "slatedb_graph_kernel",
             parent: &pending.statement_span,
             "query.page",
-            turbolay.scope = %scope,
-            turbolay.tenant_id = tracing::field::Empty,
-            turbolay.tenant.scope_id = tracing::field::Empty,
-            turbolay.sub_tenant_id = tracing::field::Empty,
-            turbolay.sub_tenant.scope_id = tracing::field::Empty,
-            turbolay.correlation_id = tracing::field::Empty,
-            turbolay.caller.step = tracing::field::Empty,
-            turbolay.read_epoch = tracing::field::Empty,
-            turbolay.query.rows_returned = tracing::field::Empty,
+            hydradb.scope = %scope,
+            hydradb.tenant_id = tracing::field::Empty,
+            hydradb.tenant.scope_id = tracing::field::Empty,
+            hydradb.sub_tenant_id = tracing::field::Empty,
+            hydradb.sub_tenant.scope_id = tracing::field::Empty,
+            hydradb.correlation_id = tracing::field::Empty,
+            hydradb.caller.step = tracing::field::Empty,
+            hydradb.read_epoch = tracing::field::Empty,
+            hydradb.query.rows_returned = tracing::field::Empty,
             error.class = tracing::field::Empty,
             page = pending.pages,
             fetch_size,
@@ -1696,14 +1696,14 @@ where
         );
         // Repeated from the statement span rather than inherited from it: a
         // PULL that arrives long after its RUN is read on its own in a trace
-        // backend, and `turbolay.scope` two lines up is repeated for the same
+        // backend, and `hydradb.scope` two lines up is repeated for the same
         // reason.
         crate::client::service::record_scope_tenancy(&page_span, &scope);
         if let Some(correlation_id) = pending.prepared.request.correlation_id.as_deref() {
-            page_span.record("turbolay.correlation_id", correlation_id);
+            page_span.record("hydradb.correlation_id", correlation_id);
         }
         if let Some(caller_step) = pending.prepared.request.caller_step.as_deref() {
-            page_span.record("turbolay.caller.step", caller_step);
+            page_span.record("hydradb.caller.step", caller_step);
         }
         let remaining_runtime_ms = match remaining_bolt_runtime_ms(pending.deadline) {
             Ok(remaining) => remaining,
@@ -1740,9 +1740,9 @@ where
                     page_span.record("error.class", error.class());
                     return Ok(PageAwaitResult::Complete(Err(error)));
                 }
-                page_span.record("turbolay.query.rows_returned", page.page.rows.len() as u64);
+                page_span.record("hydradb.query.rows_returned", page.page.rows.len() as u64);
                 if let Some(read_epoch) = page.read_epoch {
-                    page_span.record("turbolay.read_epoch", read_epoch);
+                    page_span.record("hydradb.read_epoch", read_epoch);
                 }
                 pending.prepared.request.read_epoch = page.read_epoch;
                 pending.rows.extend(page.page.rows);
@@ -2034,8 +2034,8 @@ mod caller_metadata_tests {
     #[test]
     fn allowlisted_keys_are_read() {
         let extra = tx_metadata([
-            ("turbolay.correlation_id", string("693cdeab-0f11-4f0a-9d55")),
-            ("turbolay.caller.step", string("delete_source.relates_3_0")),
+            ("hydradb.correlation_id", string("693cdeab-0f11-4f0a-9d55")),
+            ("hydradb.caller.step", string("delete_source.relates_3_0")),
         ]);
         let caller = bolt_caller_metadata(&extra).expect("valid metadata");
         assert_eq!(
@@ -2063,7 +2063,7 @@ mod caller_metadata_tests {
     #[test]
     fn over_long_values_are_rejected_not_truncated() {
         let long = "a".repeat(129);
-        let extra = tx_metadata([("turbolay.correlation_id", string(&long))]);
+        let extra = tx_metadata([("hydradb.correlation_id", string(&long))]);
         let caller = bolt_caller_metadata(&extra).expect("well-formed dict");
         assert_eq!(caller.correlation_id, None);
     }
@@ -2071,7 +2071,7 @@ mod caller_metadata_tests {
     #[test]
     fn non_printable_and_non_ascii_values_are_rejected() {
         for hostile in ["corr\nid", "corr\tid", "córrelation", "\u{7f}", "   "] {
-            let extra = tx_metadata([("turbolay.correlation_id", string(hostile))]);
+            let extra = tx_metadata([("hydradb.correlation_id", string(hostile))]);
             let caller = bolt_caller_metadata(&extra).expect("well-formed dict");
             assert_eq!(caller.correlation_id, None, "accepted {hostile:?}");
         }
@@ -2079,7 +2079,7 @@ mod caller_metadata_tests {
 
     #[test]
     fn non_string_values_are_dropped_rather_than_failing_the_query() {
-        let extra = tx_metadata([("turbolay.correlation_id", BoltValue::Integer(7))]);
+        let extra = tx_metadata([("hydradb.correlation_id", BoltValue::Integer(7))]);
         let caller = bolt_caller_metadata(&extra).expect("well-formed dict");
         assert_eq!(caller.correlation_id, None);
     }
@@ -2088,8 +2088,8 @@ mod caller_metadata_tests {
     fn unknown_keys_are_dropped_not_forwarded() {
         let extra = tx_metadata([
             ("app", string("cortex-ingestion")),
-            ("turbolay.correlation_id", string("keep-me")),
-            ("turbolay.password", string("hunter2")),
+            ("hydradb.correlation_id", string("keep-me")),
+            ("hydradb.password", string("hunter2")),
         ]);
         let caller = bolt_caller_metadata(&extra).expect("well-formed dict");
         assert_eq!(
@@ -2107,7 +2107,7 @@ mod caller_metadata_tests {
     #[test]
     fn a_traceparent_is_read_from_its_own_reader() {
         let extra = tx_metadata([
-            ("turbolay.correlation_id", string("keep-me")),
+            ("hydradb.correlation_id", string("keep-me")),
             (
                 "traceparent",
                 string("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"),
@@ -2128,7 +2128,7 @@ mod caller_metadata_tests {
     /// Absent is the common case and must not be an error.
     #[test]
     fn no_traceparent_is_not_an_error() {
-        let extra = tx_metadata([("turbolay.correlation_id", string("keep-me"))]);
+        let extra = tx_metadata([("hydradb.correlation_id", string("keep-me"))]);
         assert_eq!(bolt_traceparent(&extra).expect("well-formed dict"), None);
     }
 
@@ -2141,8 +2141,8 @@ mod caller_metadata_tests {
     #[test]
     fn correlation_keys_do_not_disturb_consistency() {
         let extra = tx_metadata([
-            ("turbolay.consistency", string("strong")),
-            ("turbolay.correlation_id", string("keep-me")),
+            ("hydradb.consistency", string("strong")),
+            ("hydradb.correlation_id", string("keep-me")),
         ]);
         assert_eq!(
             bolt_read_consistency(&extra).expect("valid consistency"),
