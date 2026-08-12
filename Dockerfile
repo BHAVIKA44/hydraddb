@@ -1,6 +1,7 @@
 FROM ubuntu:24.04 AS build-base
 
 ARG RUST_VERSION=1.91.0
+ARG CARGO_CHEF_VERSION=0.1.78
 ENV DEBIAN_FRONTEND=noninteractive \
     CARGO_HOME=/usr/local/cargo \
     RUSTUP_HOME=/usr/local/rustup \
@@ -14,9 +15,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
+
+# cargo-chef is what lets the ~400 dependency crates cache independently of our
+# own source. It is installed in this stage, which changes only when the apt set
+# or the toolchain does, so it is paid for once and never on a source change.
+RUN cargo install cargo-chef --locked --version "${CARGO_CHEF_VERSION}"
+
+# `prepare` reduces the tree to a dependency manifest. Its output is a function
+# of Cargo.toml, Cargo.lock and the crate layout only, so editing src/ leaves
+# recipe.json byte-identical and the cook layers below stay valid. This stage
+# still re-runs on every source change; it takes seconds and produces no build.
+FROM build-base AS planner
+
 COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
 FROM build-base AS builder
+
+# cook must be handed the same profile and feature set as the build below it.
+# A mismatch is not an error — cargo simply rebuilds what does not match, which
+# silently undoes the dependency/application split this whole stage exists for.
+COPY --from=planner /workspace/recipe.json recipe.json
+RUN cargo chef cook --locked --release \
+      --features server-runtime,indexer-runtime,otlp \
+      --recipe-path recipe.json
+
+COPY . .
 
 # `otlp` is off by default in Cargo.toml, and every OTLP path — the trace
 # bridge, the log appender, the observable-counter registration — compiles to an
@@ -30,6 +54,13 @@ RUN cargo build --locked --release --features server-runtime,indexer-runtime,otl
 
 FROM build-base AS benchmark-builder
 
+# A different feature set to the builder stage above, so this cooks and caches
+# its own dependency layer rather than sharing one.
+COPY --from=planner /workspace/recipe.json recipe.json
+RUN cargo chef cook --locked --release --features server-runtime \
+      --recipe-path recipe.json
+
+COPY . .
 RUN cargo build --locked --release --features server-runtime \
       --example s3_bolt_benchmark_server && \
     strip target/release/examples/s3_bolt_benchmark_server

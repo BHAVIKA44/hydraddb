@@ -37,8 +37,10 @@ jobs:
         include:
           - platform: linux/amd64
             runner: ubuntu-latest
+            pair: linux-amd64
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
+            pair: linux-arm64
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -54,6 +56,8 @@ jobs:
           target: runtime
           platforms: ${{ matrix.platform }}
           push: false
+          cache-from: type=gha,scope=container-${{ matrix.pair }}
+          cache-to: type=gha,mode=max,scope=container-${{ matrix.pair }}
 
   # Each arch pushes an anonymous, digest-only image; the `merge` job below is
   # what binds those digests to the release tags. Splitting it this way is what
@@ -74,16 +78,13 @@ jobs:
         include:
           - platform: linux/amd64
             runner: ubuntu-latest
+            pair: linux-amd64
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
+            pair: linux-arm64
     steps:
       - name: Check out source
         uses: actions/checkout@v4
-
-      - name: Derive artifact-safe platform name
-        run: echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
-        env:
-          PLATFORM: ${{ matrix.platform }}
 
       - name: Generate image metadata
         id: meta
@@ -113,6 +114,10 @@ jobs:
           outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           provenance: true
           sbom: true
+          # Shares the scope the pull-request builds populate, so a release tag
+          # reuses the dependency layer its own PR already compiled.
+          cache-from: type=gha,scope=container-${{ matrix.pair }}
+          cache-to: type=gha,mode=max,scope=container-${{ matrix.pair }}
 
       - name: Export digest
         run: |
@@ -123,7 +128,7 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ env.PLATFORM_PAIR }}
+          name: digests-${{ matrix.pair }}
           path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -176,7 +181,24 @@ jobs:
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.IMAGE_NAME }}@sha256:%s ' *)
 
-      - name: Inspect published manifest
+      # A publish that silently loses an architecture is the exact failure this
+      # workflow exists to prevent, and it is invisible until someone pulls on
+      # the missing one. Assert the platform set rather than printing it. The
+      # provenance and SBOM manifests report `unknown/unknown` and are filtered
+      # out so they cannot be mistaken for a platform.
+      - name: Verify published manifest covers both platforms
         run: |
-          docker buildx imagetools inspect \
-            "${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}"
+          image="${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}"
+          docker buildx imagetools inspect "$image"
+
+          published=$(docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' \
+            | jq -r '.manifests[].platform | select(.os != "unknown") | "\(.os)/\(.architecture)"' \
+            | sort -u)
+          echo "Published platforms: $(echo "$published" | tr '\n' ' ')"
+
+          for expected in linux/amd64 linux/arm64; do
+            if ! grep -qxF "$expected" <<<"$published"; then
+              echo "::error::$image does not include $expected"
+              exit 1
+            fi
+          done
