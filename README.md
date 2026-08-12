@@ -1,7 +1,7 @@
 # HydraDB
 
-[![CI](https://github.com/usecortex/hydradb2/actions/workflows/ci.yml/badge.svg)](https://github.com/usecortex/hydradb2/actions/workflows/ci.yml)
-[![OpenCypher TCK](https://github.com/usecortex/hydradb2/actions/workflows/opencypher-tck.yml/badge.svg)](https://github.com/usecortex/hydradb2/actions/workflows/opencypher-tck.yml)
+[![CI](https://github.com/hydra-db/hydradb/actions/workflows/ci.yml/badge.svg)](https://github.com/hydra-db/hydradb/actions/workflows/ci.yml)
+[![OpenCypher TCK](https://github.com/hydra-db/hydradb/actions/workflows/opencypher-tck.yml/badge.svg)](https://github.com/hydra-db/hydradb/actions/workflows/opencypher-tck.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Rust 1.91+](https://img.shields.io/badge/rust-1.91%2B-orange.svg)](rust-toolchain.toml)
 
