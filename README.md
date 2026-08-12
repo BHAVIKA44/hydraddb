@@ -114,6 +114,7 @@ mkdir -p hydradb-data/store hydradb-data/cache
 printf '%s\n' 'local-development-token-32-bytes' > hydradb-data/auth-token
 
 docker run --rm \
+  --user "$(id -u):$(id -g)" \
   -p 7687:7687 -p 8443:8443 -p 9090:9090 \
   -v "$PWD/hydradb-data:/data" \
   -e CLOUD_PROVIDER=local \
@@ -134,9 +135,13 @@ docker run --rm \
 
 The node runs in the foreground. `LOCAL_PATH` must point at a directory that
 already exists, which is why `hydradb-data/store` is created before the mount.
-The image entrypoint is `graph-node`; it also ships `graph-indexer`. For
-production, pin an image digest rather than `latest` — see the
-[Helm chart guide](charts/hydradb/README.md).
+`--user "$(id -u):$(id -g)"` is required: the image runs as UID/GID `10001`,
+but the bind-mounted `hydradb-data` is owned by the host user, so without it the
+container cannot write its store or cache and fails on the first storage
+operation. Running as the host user makes the mounted directories writable and
+keeps the created files host-owned. The image entrypoint is `graph-node`; it
+also ships `graph-indexer`. For production, pin an image digest rather than
+`latest` — see the [Helm chart guide](charts/hydradb/README.md).
 
 </details>
 
