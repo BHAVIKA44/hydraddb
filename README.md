@@ -106,6 +106,25 @@ versions, the commit SHA, and `latest` (for example `0.1.0`, `0.1`, `0`,
 docker pull ghcr.io/hydra-db/hydradb:latest
 ```
 
+Images are published for `linux/amd64` and `linux/arm64`, so Docker selects the
+right one for the host and Apple Silicon needs no extra flags. Releases up to
+and including `0.1.0` were `linux/amd64` only, and pulling one of those on an
+ARM host fails with:
+
+```
+no matching manifest for linux/arm64/v8 in the manifest list entries
+```
+
+That message means the tag predates multi-architecture publishing, not that the
+pull is misconfigured. Move to a release after `0.1.0`, or run the older tag
+under emulation with `--platform linux/amd64` — correct but slower, and it
+requires Rosetta on Apple Silicon. To see which architectures a tag actually
+carries before pulling it:
+
+```bash
+docker buildx imagetools inspect ghcr.io/hydra-db/hydradb:latest
+```
+
 This starts one plaintext node backed by a host directory mounted into the
 container:
 
