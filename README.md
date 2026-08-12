@@ -454,6 +454,14 @@ scripts/            local, MinIO, stress, fencing, and deployment harnesses
 docs/               architecture notes, runbooks, benchmarks, and verification
 ```
 
+## Benchmarks
+
+Published latency and throughput results are available on the
+[HydraDB benchmark site](https://hydra-db.github.io/benchmark/). To reproduce
+measurements locally or against S3, use the benchmark commands and scripts
+documented above.
+
+
 ## Documentation
 
 | Document | Contents |
