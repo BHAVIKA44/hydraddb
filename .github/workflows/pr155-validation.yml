@@ -7,6 +7,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RUSTUP_TOOLCHAIN: 1.91.0
+
 jobs:
   validate:
     runs-on: ubuntu-24.04
