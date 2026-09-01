@@ -2215,9 +2215,11 @@ impl QueryCellClient for TcpQueryCellClient {
                 "query/transport/rows",
                 "server returned cancel response for rows request",
             )),
-            QueryTransportResponse::Error { message, class } => {
-                Err(transport_remote_error("query/transport/rows", message, class))
-            }
+            QueryTransportResponse::Error { message, class } => Err(transport_remote_error(
+                "query/transport/rows",
+                message,
+                class,
+            )),
         }
     }
 
@@ -2247,9 +2249,11 @@ impl QueryCellClient for TcpQueryCellClient {
                 "query/transport/page",
                 "server returned cancel response for page request",
             )),
-            QueryTransportResponse::Error { message, class } => {
-                Err(transport_remote_error("query/transport/page", message, class))
-            }
+            QueryTransportResponse::Error { message, class } => Err(transport_remote_error(
+                "query/transport/page",
+                message,
+                class,
+            )),
         }
     }
 
@@ -2275,9 +2279,11 @@ impl QueryCellClient for TcpQueryCellClient {
                 "query/transport/batch",
                 "server returned cancel response for batch request",
             )),
-            QueryTransportResponse::Error { message, class } => {
-                Err(transport_remote_error("query/transport/batch", message, class))
-            }
+            QueryTransportResponse::Error { message, class } => Err(transport_remote_error(
+                "query/transport/batch",
+                message,
+                class,
+            )),
         }
     }
 
@@ -2363,9 +2369,11 @@ impl TcpQueryCellClient {
                     "server returned query data for cancel request",
                 ))
             }
-            QueryTransportResponse::Error { message, class } => {
-                Err(transport_remote_error("query/transport/cancel", message, class))
-            }
+            QueryTransportResponse::Error { message, class } => Err(transport_remote_error(
+                "query/transport/cancel",
+                message,
+                class,
+            )),
         }
     }
 
@@ -3922,8 +3930,12 @@ impl QueryTransportRequest {
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum QueryTransportResponse {
-    Rows { result: QueryResultSet },
-    Page { result: QueryResultPage },
+    Rows {
+        result: QueryResultSet,
+    },
+    Page {
+        result: QueryResultPage,
+    },
     Cancelled,
     Error {
         message: String,
@@ -4960,10 +4972,8 @@ mod scope_grant_tests {
 
     #[test]
     fn query_transport_error_class_is_additive_and_validated() {
-        let legacy: QueryTransportResponse = serde_json::from_str(
-            r#"{"kind":"error","message":"legacy peer"}"#,
-        )
-        .unwrap();
+        let legacy: QueryTransportResponse =
+            serde_json::from_str(r#"{"kind":"error","message":"legacy peer"}"#).unwrap();
         assert!(matches!(
             legacy,
             QueryTransportResponse::Error { class: None, .. }
