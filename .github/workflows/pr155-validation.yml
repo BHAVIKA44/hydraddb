@@ -1,0 +1,41 @@
+name: PR 155 validation
+
+on:
+  push:
+    branches: [validation/pr155]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang cmake libclang-dev libcypher-parser-dev \
+            libgraphblas-dev pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install just
+        run: cargo install just --locked
+
+      - name: Toolchain and native dependencies
+        run: |
+          rustc --version
+          cargo --version
+          just --version
+          just native-check
+
+      - run: just fmt-check
+      - run: just clippy-native
+      - run: just test-native
+      - run: just test-client-protocols
+      - run: just ci
