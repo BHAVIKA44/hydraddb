@@ -5954,21 +5954,21 @@ async fn tcp_query_transport_preserves_remote_error_classes() {
     impl FailingQueryClient {
         fn error(query: &str) -> GraphError {
             match query {
-                "ADMISSION" => GraphError::AdmissionRejected {
+                "RETURN 1 AS admission" => GraphError::AdmissionRejected {
                     operation: "test_admission",
                     actual: 2,
                     limit: 1,
                 },
-                "TIMEOUT" => GraphError::QueryTimeout {
+                "RETURN 1 AS timeout" => GraphError::QueryTimeout {
                     operation: "test_timeout",
                     elapsed_ms: 10,
                     limit_ms: 5,
                 },
-                "QUERY" => GraphError::QueryParse {
+                "RETURN 1 AS query_error" => GraphError::QueryParse {
                     dialect: "openCypher",
                     reason: "test query error".to_string(),
                 },
-                "INTERNAL" => GraphError::CorruptValue {
+                "RETURN 1 AS internal_error" => GraphError::CorruptValue {
                     key: "internal/test-key".to_string(),
                     reason: "sensitive test detail".to_string(),
                 },
@@ -6012,10 +6012,10 @@ async fn tcp_query_transport_preserves_remote_error_classes() {
         .insecure_allow_plaintext();
 
     for (query, expected_class) in [
-        ("ADMISSION", "admission"),
-        ("TIMEOUT", "timeout"),
-        ("QUERY", "query"),
-        ("INTERNAL", "corruption"),
+        ("RETURN 1 AS admission", "admission"),
+        ("RETURN 1 AS timeout", "timeout"),
+        ("RETURN 1 AS query_error", "query"),
+        ("RETURN 1 AS internal_error", "corruption"),
     ] {
         let error = client
             .execute_cypher_rows(
@@ -6025,7 +6025,7 @@ async fn tcp_query_transport_preserves_remote_error_classes() {
             .await
             .unwrap_err();
         assert_eq!(error.class(), expected_class, "{query} error class");
-        if query == "INTERNAL" {
+        if query == "RETURN 1 AS internal_error" {
             assert!(error.to_string().contains("internal query execution error"));
             assert!(!error.to_string().contains("sensitive test detail"));
         }

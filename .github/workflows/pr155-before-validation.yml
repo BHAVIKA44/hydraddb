@@ -20,7 +20,7 @@ jobs:
             build-essential clang cmake libclang-dev libcypher-parser-dev \
             libgraphblas-dev pkg-config
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.91.0
 
       - uses: Swatinem/rust-cache@v2
 
