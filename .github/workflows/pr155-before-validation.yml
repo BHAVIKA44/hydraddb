@@ -1,0 +1,37 @@
+name: PR 155 regression before fix
+
+on:
+  push:
+    branches: [validation/pr155-before]
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang cmake libclang-dev libcypher-parser-dev \
+            libgraphblas-dev pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install just
+        run: cargo install just --locked
+
+      - name: Native dependency gate
+        run: |
+          rustc --version
+          cargo --version
+          just --version
+          just native-check
+
+      - run: just test-native
