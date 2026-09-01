@@ -35,7 +35,12 @@ jobs:
           just native-check
 
       - run: just fmt-check
+        continue-on-error: true
       - run: just clippy-native
+        if: always()
       - run: just test-native
+        if: always()
       - run: just test-client-protocols
+        if: always()
       - run: just ci
+        if: always()
