@@ -34,15 +34,85 @@ jobs:
           just --version
           just native-check
 
-      - run: just fmt-check
+      - name: Run just fmt-check
+        run: just fmt-check
         continue-on-error: true
-      - run: just clippy-native
+      - name: Run just clippy
+        run: just clippy
         if: always()
-      - run: just clippy-client-protocols
+        continue-on-error: true
+      - name: Run just clippy-chaos
+        run: just clippy-chaos
         if: always()
-      - run: just test-native
+        continue-on-error: true
+      - name: Run just clippy-opencypher
+        run: just clippy-opencypher
         if: always()
-      - run: just test-client-protocols
+        continue-on-error: true
+      - name: Run just clippy-native
+        run: just clippy-native
         if: always()
-      - run: just ci
+        continue-on-error: true
+      - name: Run just clippy-client-protocols
+        run: just clippy-client-protocols
+        if: always()
+        continue-on-error: true
+      - name: Run just clippy-runtime
+        run: just clippy-runtime
+        if: always()
+        continue-on-error: true
+      - name: Run just test-placement
+        run: just test-placement
+        if: always()
+        continue-on-error: true
+      - name: Run just test-telemetry
+        run: just test-telemetry
+        if: always()
+        continue-on-error: true
+      - name: Run just check-all-features
+        run: just check-all-features
+        if: always()
+        continue-on-error: true
+      - name: Run just check-client-api
+        run: just check-client-api
+        if: always()
+        continue-on-error: true
+      - name: Run just check-bolt-server
+        run: just check-bolt-server
+        if: always()
+        continue-on-error: true
+      - name: Run just test
+        run: just test
+        if: always()
+        continue-on-error: true
+      - name: Run just test-opencypher
+        run: just test-opencypher
+        if: always()
+        continue-on-error: true
+      - name: Run just test-native
+        run: just test-native
+        if: always()
+        continue-on-error: true
+      - name: Run just test-client-protocols
+        run: just test-client-protocols
+        if: always()
+        continue-on-error: true
+      - name: Run just test-chaos
+        run: just test-chaos
+        if: always()
+        continue-on-error: true
+      - name: Run just test-server-runtime
+        run: just test-server-runtime
+        if: always()
+        continue-on-error: true
+      - name: Run just test-indexer
+        run: just test-indexer
+        if: always()
+        continue-on-error: true
+      - name: Run just test-node-otlp
+        run: just test-node-otlp
+        if: always()
+        continue-on-error: true
+      - name: Run just ci
+        run: just ci
         if: always()
