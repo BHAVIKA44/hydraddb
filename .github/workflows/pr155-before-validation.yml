@@ -7,9 +7,6 @@ on:
 permissions:
   contents: read
 
-env:
-  RUSTUP_TOOLCHAIN: 1.91.0
-
 jobs:
   regression:
     runs-on: ubuntu-24.04
@@ -23,7 +20,7 @@ jobs:
             build-essential clang cmake libclang-dev libcypher-parser-dev \
             libgraphblas-dev pkg-config
 
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
 
