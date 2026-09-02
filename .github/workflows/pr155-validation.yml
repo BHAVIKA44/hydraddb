@@ -7,9 +7,6 @@ on:
 permissions:
   contents: read
 
-env:
-  RUSTUP_TOOLCHAIN: 1.91.0
-
 jobs:
   validate:
     runs-on: ubuntu-24.04
@@ -23,7 +20,7 @@ jobs:
             build-essential clang cmake libclang-dev libcypher-parser-dev \
             libgraphblas-dev pkg-config
 
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
 
@@ -40,6 +37,8 @@ jobs:
       - run: just fmt-check
         continue-on-error: true
       - run: just clippy-native
+        if: always()
+      - run: just clippy-client-protocols
         if: always()
       - run: just test-native
         if: always()
