@@ -1,0 +1,118 @@
+name: PR 155 base validation
+
+on:
+  push:
+    branches: [validation/pr155-base]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang cmake libclang-dev libcypher-parser-dev \
+            libgraphblas-dev pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install just
+        run: cargo install just --locked
+
+      - name: Toolchain and native dependencies
+        run: |
+          rustc --version
+          cargo --version
+          just --version
+          just native-check
+
+      - name: Run just fmt-check
+        run: just fmt-check
+        continue-on-error: true
+      - name: Run just clippy
+        run: just clippy
+        if: always()
+        continue-on-error: true
+      - name: Run just clippy-chaos
+        run: just clippy-chaos
+        if: always()
+        continue-on-error: true
+      - name: Run just clippy-opencypher
+        run: just clippy-opencypher
+        if: always()
+        continue-on-error: true
+      - name: Run just clippy-native
+        run: just clippy-native
+        if: always()
+        continue-on-error: true
+      - name: Run just clippy-client-protocols
+        run: just clippy-client-protocols
+        if: always()
+        continue-on-error: true
+      - name: Run just clippy-runtime
+        run: just clippy-runtime
+        if: always()
+        continue-on-error: true
+      - name: Run just test-placement
+        run: just test-placement
+        if: always()
+        continue-on-error: true
+      - name: Run just test-telemetry
+        run: just test-telemetry
+        if: always()
+        continue-on-error: true
+      - name: Run just check-all-features
+        run: just check-all-features
+        if: always()
+        continue-on-error: true
+      - name: Run just check-client-api
+        run: just check-client-api
+        if: always()
+        continue-on-error: true
+      - name: Run just check-bolt-server
+        run: just check-bolt-server
+        if: always()
+        continue-on-error: true
+      - name: Run just test
+        run: just test
+        if: always()
+        continue-on-error: true
+      - name: Run just test-opencypher
+        run: just test-opencypher
+        if: always()
+        continue-on-error: true
+      - name: Run just test-native
+        run: just test-native
+        if: always()
+        continue-on-error: true
+      - name: Run just test-client-protocols
+        run: just test-client-protocols
+        if: always()
+        continue-on-error: true
+      - name: Run just test-chaos
+        run: just test-chaos
+        if: always()
+        continue-on-error: true
+      - name: Run just test-server-runtime
+        run: just test-server-runtime
+        if: always()
+        continue-on-error: true
+      - name: Run just test-indexer
+        run: just test-indexer
+        if: always()
+        continue-on-error: true
+      - name: Run just test-node-otlp
+        run: just test-node-otlp
+        if: always()
+        continue-on-error: true
+      - name: Run just ci
+        run: just ci
+        if: always()
